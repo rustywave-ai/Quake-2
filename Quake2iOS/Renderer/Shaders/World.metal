@@ -65,6 +65,32 @@ fragment float4 world_warp_fragment(
     return float4(result, 0.5); /* Water is translucent */
 }
 
+/* ================================================================ */
+/* Beam shaders (untextured, colored 3D geometry for hyperblaster etc.) */
+/* ================================================================ */
+
+struct BeamVertexOut {
+    float4 position [[position]];
+    float4 color;
+};
+
+vertex BeamVertexOut beam_vertex(
+    const device Q2BeamVertex *vertices [[buffer(Q2BufferIndexVertices)]],
+    constant Q2FrameUniforms &uniforms [[buffer(Q2BufferIndexFrameUniforms)]],
+    uint vid [[vertex_id]])
+{
+    BeamVertexOut out;
+    float4 worldPos = float4(vertices[vid].position, 1.0);
+    out.position = uniforms.projectionMatrix * uniforms.viewMatrix * worldPos;
+    out.color = vertices[vid].color;
+    return out;
+}
+
+fragment float4 beam_fragment(BeamVertexOut in [[stage_in]])
+{
+    return in.color;
+}
+
 /* Sky surface shader */
 fragment float4 world_sky_fragment(
     WorldVertexOut in [[stage_in]],

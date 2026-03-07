@@ -49,6 +49,12 @@ typedef struct {
     float size;
 } Q2ParticleVertex;
 
+/* Vertex layout for beams (untextured, colored 3D geometry) */
+typedef struct {
+    packed_float3 position;
+    packed_float4 color;
+} Q2BeamVertex;
+
 /* Per-frame uniforms (world rendering) */
 typedef struct {
     float4x4 projectionMatrix;

@@ -218,9 +218,16 @@ static void Metal_DrawSurface(msurface_t *surf,
         triVerts[i * 3 + 2] = verts[i + 2];
     }
 
-    [encoder setVertexBytes:triVerts
-                     length:sizeof(Q2WorldVertex) * numTris * 3
-                    atIndex:Q2BufferIndexVertices];
+    /* setVertexBytes has a 4KB limit; use MTLBuffer for larger surfaces */
+    NSUInteger vertLen = sizeof(Q2WorldVertex) * numTris * 3;
+    if (vertLen <= 4096) {
+        [encoder setVertexBytes:triVerts length:vertLen atIndex:Q2BufferIndexVertices];
+    } else {
+        id<MTLBuffer> buf = [mtl_device_global newBufferWithBytes:triVerts
+                                                          length:vertLen
+                                                         options:MTLResourceStorageModeShared];
+        [encoder setVertexBuffer:buf offset:0 atIndex:Q2BufferIndexVertices];
+    }
     [encoder drawPrimitives:MTLPrimitiveTypeTriangle
                 vertexStart:0
                 vertexCount:numTris * 3];
@@ -290,9 +297,12 @@ static void R_RecursiveWorldNode(mnode_t *node,
             if (d < 0) continue;
         }
 
-        /* Skip sky and warp for now (separate passes) */
-        if (surf->flags & SURF_DRAWSKY)
+        /* Collect sky surfaces for skybox rendering */
+        if (surf->flags & SURF_DRAWSKY) {
+            extern void Metal_AddSkySurface(msurface_t *fa);
+            Metal_AddSkySurface(surf);
             continue;
+        }
 
         if (surf->texinfo->flags & (SURF_TRANS33 | SURF_TRANS66)) {
             /* Add to alpha chain */
