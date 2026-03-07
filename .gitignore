@@ -1,0 +1,8 @@
+# macOS
+.DS_Store
+
+# Xcode generated project (regenerate from project.yml via xcodegen)
+Quake2iOS/Quake2iOS.xcodeproj/
+
+# Game assets (PAK files, player models, etc.)
+Quake2iOS/Assets/baseq2/
