@@ -27,6 +27,10 @@ void IOS_SetLookInput(float yawDelta, float pitchDelta);
 void IOS_KeyEvent(int key, int down);
 int  IOS_IsMenuActive(void);
 int  IOS_IsConsoleActive(void);
+int  IOS_IsInGame(void);
+void IOS_MenuTouchAt(int x, int y);
+void IOS_SetControllerConnected(int connected);
+int  IOS_IsControllerConnected(void);
 
 /* Metal layer bridge — implemented in MetalRenderer.m */
 void IOS_SetMetalLayer(void *layer);

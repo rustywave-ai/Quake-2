@@ -72,6 +72,7 @@ class GameControllerManager {
         controller = nil
         hapticEngine?.stop()
         hapticEngine = nil
+        IOS_SetControllerConnected(0)
         onControllerDisconnected?()
     }
 
@@ -80,6 +81,7 @@ class GameControllerManager {
         gc.playerIndex = .index1
 
         if let gamepad = gc.extendedGamepad {
+            IOS_SetControllerConnected(1)
             configureExtendedGamepad(gamepad)
         }
 

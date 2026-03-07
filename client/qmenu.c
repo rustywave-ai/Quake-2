@@ -23,6 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "client.h"
 #include "qmenu.h"
 
+menuframework_s *ios_current_menu = NULL;
+
 static void	 Action_DoEnter( menuaction_s *a );
 static void	 Action_Draw( menuaction_s *a );
 static void  Menu_DrawStatusBar( const char *string );
@@ -347,6 +349,9 @@ void Menu_Draw( menuframework_s *menu )
 	int i;
 	menucommon_s *item;
 
+	/* Track active framework menu for iOS touch hit testing */
+	ios_current_menu = menu;
+
 	/*
 	** draw contents
 	*/
@@ -377,6 +382,8 @@ void Menu_Draw( menuframework_s *menu )
 
 	item = Menu_ItemAtCursor( menu );
 
+#ifndef __IOS__
+	/* iOS is touch-first — no selection cursor needed */
 	if ( item && item->cursordraw )
 	{
 		item->cursordraw( item );
@@ -396,6 +403,7 @@ void Menu_Draw( menuframework_s *menu )
 			Draw_Char( menu->x + item->cursor_offset, menu->y + item->y, 12 + ( ( int ) ( Sys_Milliseconds()/250 ) & 1 ) );
 		}
 	}
+#endif
 
 	if ( item )
 	{

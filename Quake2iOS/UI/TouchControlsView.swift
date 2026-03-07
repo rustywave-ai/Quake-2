@@ -22,6 +22,13 @@ class TouchControlsView: UIView {
     private let joystick = VirtualJoystick()
     private var actionButtons: [ActionButton] = []
 
+    /* Game state — action buttons hidden until a real game starts */
+    private(set) var gameControlsVisible = false {
+        didSet {
+            for btn in actionButtons { btn.isHidden = !gameControlsVisible }
+        }
+    }
+
     /* Look tracking */
     private var lookTouch: UITouch?
     private var lookPrevPoint = CGPoint.zero
@@ -38,6 +45,9 @@ class TouchControlsView: UIView {
 
         addSubview(joystick)
         setupButtons()
+
+        /* Start with action buttons hidden */
+        for btn in actionButtons { btn.isHidden = true }
     }
 
     required init?(coder: NSCoder) {
@@ -50,6 +60,16 @@ class TouchControlsView: UIView {
         layoutButtons()
     }
 
+    /// Called each frame to sync game controls visibility with engine state.
+    /// Action buttons only appear when the player is in an actual game
+    /// (not during attract/demo loop or disconnected state).
+    func updateGameState() {
+        let inGame = IOS_IsInGame() != 0
+        if inGame != gameControlsVisible {
+            gameControlsVisible = inGame
+        }
+    }
+
     // MARK: - Buttons
 
     private func setupButtons() {
@@ -59,7 +79,6 @@ class TouchControlsView: UIView {
             ("Crouch", K_CTRL),
             ("▲", K_MWHEELUP),
             ("▼", K_MWHEELDOWN),
-            ("☰", K_ESCAPE),
         ]
         for (title, key) in buttonDefs {
             let btn = ActionButton(title: title, keyCode: key)
@@ -129,17 +148,6 @@ class TouchControlsView: UIView {
             )
             wepDown.layer.cornerRadius = 22
         }
-
-        /* Menu — top left */
-        if actionButtons.count > 5 {
-            let menu = actionButtons[5]
-            menu.frame = CGRect(
-                x: safeArea.left + 20,
-                y: safeArea.top + 10,
-                width: 44, height: 44
-            )
-            menu.layer.cornerRadius = 22
-        }
     }
 
     // MARK: - Touch Handling
@@ -148,8 +156,10 @@ class TouchControlsView: UIView {
         for touch in touches {
             let point = touch.location(in: self)
 
-            /* Check if touch is on an action button */
-            if handleButtonTouch(touch, began: true) { continue }
+            /* When game controls are visible, check action buttons first */
+            if gameControlsVisible && handleButtonTouch(touch, began: true) {
+                continue
+            }
 
             /* When menu is active, taps navigate the menu */
             if IOS_IsMenuActive() != 0 {
@@ -157,6 +167,13 @@ class TouchControlsView: UIView {
                 continue
             }
 
+            /* Before a game starts, any tap opens the menu */
+            if !gameControlsVisible {
+                sendKeyTap(K_ESCAPE)
+                continue
+            }
+
+            /* In-game touch zones */
             if point.x < joystickZoneWidth {
                 /* Left zone — joystick */
                 joystick.touchBegan(at: point)
@@ -172,6 +189,7 @@ class TouchControlsView: UIView {
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard gameControlsVisible else { return }
         for touch in touches {
             let point = touch.location(in: self)
 
@@ -191,7 +209,7 @@ class TouchControlsView: UIView {
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
-            handleButtonTouch(touch, began: false)
+            if gameControlsVisible { handleButtonTouch(touch, began: false) }
 
             if touch === lookTouch {
                 lookTouch = nil
@@ -209,26 +227,11 @@ class TouchControlsView: UIView {
     // MARK: - Menu Touch Navigation
 
     private func handleMenuTouch(at point: CGPoint) {
-        let centerY = bounds.height / 2
-        let centerX = bounds.width / 2
-        let tapZone = bounds.height * 0.15  /* Middle 30% of screen height */
-
-        if point.y < centerY - tapZone {
-            /* Top area — move up */
-            sendKeyTap(K_UPARROW)
-        } else if point.y > centerY + tapZone {
-            /* Bottom area — move down */
-            sendKeyTap(K_DOWNARROW)
-        } else if abs(point.x - centerX) < bounds.width * 0.3 {
-            /* Center area — select */
-            sendKeyTap(K_ENTER)
-        } else if point.x < centerX {
-            /* Left area — back/escape */
-            sendKeyTap(K_ESCAPE)
-        } else {
-            /* Right area — select */
-            sendKeyTap(K_ENTER)
-        }
+        /* Delegate to C-level hit testing which maps touch coordinates
+         * directly to menu items using Q2's rendering positions.
+         * Touch on an item → activates it.
+         * Touch outside items → closes menu or goes back a level. */
+        IOS_MenuTouchAt(Int32(point.x), Int32(point.y))
     }
 
     private func sendKeyTap(_ key: Int32) {
@@ -247,7 +250,7 @@ class TouchControlsView: UIView {
     @discardableResult
     private func handleButtonTouch(_ touch: UITouch, began: Bool) -> Bool {
         let point = touch.location(in: self)
-        for button in actionButtons {
+        for button in actionButtons where !button.isHidden {
             if button.frame.insetBy(dx: -10, dy: -10).contains(point) {
                 IOS_KeyEvent(button.keyCode, began ? 1 : 0)
                 button.isHighlighted = began
@@ -267,8 +270,8 @@ private class ActionButton: UIView {
     var isHighlighted: Bool = false {
         didSet {
             backgroundColor = isHighlighted
-                ? UIColor.white.withAlphaComponent(0.4)
-                : UIColor.white.withAlphaComponent(0.15)
+                ? UIColor(white: 0.4, alpha: 0.8)
+                : UIColor(white: 0.2, alpha: 0.6)
         }
     }
 
@@ -276,14 +279,13 @@ private class ActionButton: UIView {
         self.keyCode = keyCode
         super.init(frame: .zero)
 
-        backgroundColor = UIColor.white.withAlphaComponent(0.15)
-        layer.borderColor = UIColor.white.withAlphaComponent(0.3).cgColor
-        layer.borderWidth = 1
-        clipsToBounds = true
+        backgroundColor = UIColor(white: 0.2, alpha: 0.6)
+        layer.borderColor = UIColor.white.withAlphaComponent(0.7).cgColor
+        layer.borderWidth = 1.5
 
         label.text = title
-        label.textColor = UIColor.white.withAlphaComponent(0.8)
-        label.font = .boldSystemFont(ofSize: 14)
+        label.textColor = .white
+        label.font = .boldSystemFont(ofSize: 15)
         label.textAlignment = .center
         label.translatesAutoresizingMaskIntoConstraints = false
         addSubview(label)

@@ -126,6 +126,8 @@ void	Menu_AddItem( menuframework_s *menu, void *item );
 void	Menu_AdjustCursor( menuframework_s *menu, int dir );
 void	Menu_Center( menuframework_s *menu );
 void	Menu_Draw( menuframework_s *menu );
+
+extern menuframework_s *ios_current_menu;
 void	*Menu_ItemAtCursor( menuframework_s *m );
 qboolean Menu_SelectItem( menuframework_s *s );
 void	Menu_SetStatusBar( menuframework_s *s, const char *string );

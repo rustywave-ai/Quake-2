@@ -10,6 +10,9 @@
 #include "../../qcommon/qcommon.h"
 #include "../../client/client.h"
 
+/* Controller state — determines whether menu cursor indicators are shown */
+static int ios_controller_connected = 0;
+
 /* Input state - set by Swift touch/controller handlers */
 static float ios_joystick_x = 0.0f;    /* -1 to 1, strafe */
 static float ios_joystick_y = 0.0f;    /* -1 to 1, forward/back */
@@ -63,6 +66,42 @@ int IOS_IsMenuActive(void)
 int IOS_IsConsoleActive(void)
 {
     return (cls.key_dest == key_console) ? 1 : 0;
+}
+
+/*
+ * IOS_IsInGame
+ * Returns 1 if the player is in an actual game (not attract/demo loop).
+ * Used by Swift to show action buttons only during real gameplay.
+ */
+int IOS_IsInGame(void)
+{
+    return (cls.state == ca_active && !cl.attractloop) ? 1 : 0;
+}
+
+/*
+ * IOS_SetControllerConnected / IOS_IsControllerConnected
+ * Tracks whether an MFi/DualSense controller is connected.
+ * When no controller is present (touch-only), menu cursor indicators are hidden.
+ */
+void IOS_SetControllerConnected(int connected)
+{
+    ios_controller_connected = connected;
+}
+
+int IOS_IsControllerConnected(void)
+{
+    return ios_controller_connected;
+}
+
+/*
+ * IOS_MenuTouchAt
+ * Directly selects the menu item at the given screen coordinates.
+ * Called from Swift touch handling instead of sending UP/DOWN/ENTER keys.
+ */
+void IOS_MenuTouchAt(int x, int y)
+{
+    extern void M_TouchEvent(int x, int y);
+    M_TouchEvent(x, y);
 }
 
 /* ================================================================ */
