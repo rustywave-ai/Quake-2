@@ -1,0 +1,236 @@
+name: Quake2iOS
+options:
+  bundleIdPrefix: com.rustywave.quake2
+  deploymentTarget:
+    iOS: "16.0"
+  xcodeVersion: "15.0"
+  createIntermediateGroups: true
+  defaultConfig: Debug
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+
+targets:
+  Quake2iOS:
+    type: application
+    platform: iOS
+    sources:
+      # Swift UI layer
+      - path: UI
+        type: group
+        includes:
+          - "*.swift"
+
+      # Platform layer (Objective-C / C)
+      - path: Platform
+        type: group
+        includes:
+          - "*.m"
+          - "*.c"
+
+      # Metal renderer
+      - path: Renderer
+        type: group
+        includes:
+          - "*.m"
+          - "*.h"
+      - path: Renderer/Shaders
+        type: group
+        includes:
+          - "*.metal"
+
+      # Bridging header
+      - path: Bridging
+        type: group
+        includes:
+          - "*.h"
+
+      # Engine — qcommon
+      - path: ../qcommon/cmd.c
+      - path: ../qcommon/cmodel.c
+      - path: ../qcommon/common.c
+      - path: ../qcommon/crc.c
+      - path: ../qcommon/cvar.c
+      - path: ../qcommon/files.c
+      - path: ../qcommon/md4.c
+      - path: ../qcommon/net_chan.c
+      - path: ../qcommon/pmove.c
+
+      # Engine — game (static, not DLL)
+      - path: ../game/g_ai.c
+      - path: ../game/g_chase.c
+      - path: ../game/g_cmds.c
+      - path: ../game/g_combat.c
+      - path: ../game/g_func.c
+      - path: ../game/g_items.c
+      - path: ../game/g_main.c
+      - path: ../game/g_misc.c
+      - path: ../game/g_monster.c
+      - path: ../game/g_phys.c
+      - path: ../game/g_save.c
+      - path: ../game/g_spawn.c
+      - path: ../game/g_svcmds.c
+      - path: ../game/g_target.c
+      - path: ../game/g_trigger.c
+      - path: ../game/g_turret.c
+      - path: ../game/g_utils.c
+      - path: ../game/g_weapon.c
+      - path: ../game/m_actor.c
+      - path: ../game/m_berserk.c
+      - path: ../game/m_boss2.c
+      - path: ../game/m_boss3.c
+      - path: ../game/m_boss31.c
+      - path: ../game/m_boss32.c
+      - path: ../game/m_brain.c
+      - path: ../game/m_chick.c
+      - path: ../game/m_flash.c
+      - path: ../game/m_flipper.c
+      - path: ../game/m_float.c
+      - path: ../game/m_flyer.c
+      - path: ../game/m_gladiator.c
+      - path: ../game/m_gunner.c
+      - path: ../game/m_hover.c
+      - path: ../game/m_infantry.c
+      - path: ../game/m_insane.c
+      - path: ../game/m_medic.c
+      - path: ../game/m_move.c
+      - path: ../game/m_mutant.c
+      - path: ../game/m_parasite.c
+      - path: ../game/m_soldier.c
+      - path: ../game/m_supertank.c
+      - path: ../game/m_tank.c
+      - path: ../game/p_client.c
+      - path: ../game/p_hud.c
+      - path: ../game/p_trail.c
+      - path: ../game/p_view.c
+      - path: ../game/p_weapon.c
+      - path: ../game/q_shared.c
+
+      # Engine — server
+      - path: ../server/sv_ccmds.c
+      - path: ../server/sv_ents.c
+      - path: ../server/sv_game.c
+      - path: ../server/sv_init.c
+      - path: ../server/sv_main.c
+      - path: ../server/sv_send.c
+      - path: ../server/sv_user.c
+      - path: ../server/sv_world.c
+
+      # Engine — client
+      - path: ../client/cl_cin.c
+      - path: ../client/cl_ents.c
+      - path: ../client/cl_fx.c
+      - path: ../client/cl_input.c
+      - path: ../client/cl_inv.c
+      - path: ../client/cl_main.c
+      - path: ../client/cl_newfx.c
+      - path: ../client/cl_parse.c
+      - path: ../client/cl_pred.c
+      - path: ../client/cl_scrn.c
+      - path: ../client/cl_tent.c
+      - path: ../client/cl_view.c
+      - path: ../client/console.c
+      - path: ../client/keys.c
+      - path: ../client/menu.c
+      - path: ../client/qmenu.c
+      - path: ../client/snd_dma.c
+      - path: ../client/snd_mem.c
+      - path: ../client/snd_mix.c
+
+    postCompileScripts:
+      - script: |
+          mkdir -p "${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app/baseq2"
+          cp -R "${SRCROOT}/Assets/baseq2/" "${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app/baseq2/"
+        name: Copy Game Data
+
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.rustywave.quake2ios
+        INFOPLIST_GENERATION_MODE: GeneratedByXcode
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+        INFOPLIST_KEY_UIRequiresFullScreen: YES
+        INFOPLIST_KEY_UIStatusBarHidden: YES
+
+        # Code signing
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: ""
+        CODE_SIGNING_ALLOWED: NO
+
+        # Swift / ObjC bridging
+        SWIFT_OBJC_BRIDGING_HEADER: Bridging/Quake2iOS-Bridging-Header.h
+
+        # C compilation settings
+        GCC_PREFIX_HEADER: Engine/Quake2iOS-Prefix.h
+        GCC_PRECOMPILE_PREFIX_HEADER: YES
+
+        # Header search paths for the original Quake 2 source
+        HEADER_SEARCH_PATHS:
+          - "$(SRCROOT)/.."
+          - "$(SRCROOT)/../game"
+          - "$(SRCROOT)/../qcommon"
+          - "$(SRCROOT)/../client"
+          - "$(SRCROOT)/../server"
+          - "$(SRCROOT)"
+
+        # Suppress warnings in legacy C code
+        GCC_WARN_ABOUT_RETURN_TYPE: YES
+        GCC_WARN_UNUSED_VARIABLE: NO
+        GCC_WARN_UNUSED_FUNCTION: NO
+        GCC_WARN_IMPLICIT_FUNCTION_DECLARATION: NO
+        GCC_WARN_UNDECLARED_SELECTOR: NO
+        GCC_TREAT_WARNINGS_AS_ERRORS: NO
+        CLANG_WARN_STRICT_PROTOTYPES: NO
+        CLANG_WARN_COMMA: NO
+        CLANG_WARN_UNREACHABLE_CODE: NO
+
+        # Preprocessor defines
+        GCC_PREPROCESSOR_DEFINITIONS:
+          - "__IOS__=1"
+          - "id386=0"
+          - "GAME_HARD_LINKED=1"
+
+        # Architecture
+        ARCHS: arm64
+        VALID_ARCHS: arm64
+        EXCLUDED_ARCHS[sdk=iphonesimulator*]: ""
+
+        # Metal
+        MTL_HEADER_SEARCH_PATHS: "$(SRCROOT)/Renderer"
+
+      configs:
+        Debug:
+          GCC_OPTIMIZATION_LEVEL: "0"
+          SWIFT_OPTIMIZATION_LEVEL: "-Onone"
+          GCC_PREPROCESSOR_DEFINITIONS:
+            - "__IOS__=1"
+            - "id386=0"
+            - "GAME_HARD_LINKED=1"
+            - "IOS_DEBUG=1"
+        Release:
+          GCC_OPTIMIZATION_LEVEL: "s"
+          SWIFT_OPTIMIZATION_LEVEL: "-O"
+          GCC_PREPROCESSOR_DEFINITIONS:
+            - "__IOS__=1"
+            - "id386=0"
+            - "GAME_HARD_LINKED=1"
+            - "NDEBUG=1"
+
+    dependencies: []
+
+    preBuildScripts: []
+
+    frameworks:
+      - Metal.framework
+      - MetalKit.framework
+      - UIKit.framework
+      - GameController.framework
+      - CoreHaptics.framework
+      - AVFoundation.framework
+      - AudioToolbox.framework
+      - Foundation.framework
+      - QuartzCore.framework

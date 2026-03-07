@@ -17,6 +17,10 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
+
+#ifndef SERVER_H
+#define SERVER_H
+
 // server.h
 
 
@@ -338,4 +342,6 @@ trace_t SV_Trace (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, edict_t *p
 // to an open area
 
 // passedict is explicitly excluded from clipping checks (normally NULL)
+
+#endif /* SERVER_H */
 

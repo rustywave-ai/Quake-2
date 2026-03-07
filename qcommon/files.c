@@ -458,7 +458,15 @@ pack_t *FS_LoadPackFile (char *packfile)
 
 	packhandle = fopen(packfile, "rb");
 	if (!packhandle)
+	{
+#ifdef __IOS__
+		Com_Printf("FS_LoadPackFile: FAILED to open '%s'\n", packfile);
+#endif
 		return NULL;
+	}
+#ifdef __IOS__
+	Com_Printf("FS_LoadPackFile: opened '%s'\n", packfile);
+#endif
 
 	fread (&header, 1, sizeof(header), packhandle);
 	if (LittleLong(header.ident) != IDPAKHEADER)
@@ -848,11 +856,23 @@ void FS_InitFilesystem (void)
 	// basedir <path>
 	// allows the game to run from outside the data tree
 	//
+#ifdef __IOS__
+	{
+		extern const char *IOS_GetBasePath(void);
+		const char *iosBase = IOS_GetBasePath();
+		if (iosBase && iosBase[0])
+			fs_basedir = Cvar_Get ("basedir", (char *)iosBase, CVAR_NOSET);
+		else
+			fs_basedir = Cvar_Get ("basedir", ".", CVAR_NOSET);
+		Com_Printf("FS_InitFilesystem: basedir = '%s'\n", fs_basedir->string);
+	}
+#else
 	fs_basedir = Cvar_Get ("basedir", ".", CVAR_NOSET);
+#endif
 
 	//
 	// cddir <path>
-	// Logically concatenates the cddir after the basedir for 
+	// Logically concatenates the cddir after the basedir for
 	// allows the game to run from outside the data tree
 	//
 	fs_cddir = Cvar_Get ("cddir", "", CVAR_NOSET);
@@ -862,6 +882,9 @@ void FS_InitFilesystem (void)
 	//
 	// start up with baseq2 by default
 	//
+#ifdef __IOS__
+	Com_Printf("FS_InitFilesystem: adding game dir '%s'\n", va("%s/"BASEDIRNAME, fs_basedir->string));
+#endif
 	FS_AddGameDirectory (va("%s/"BASEDIRNAME, fs_basedir->string) );
 
 	// any set gamedirs will be freed up to here

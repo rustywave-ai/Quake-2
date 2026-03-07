@@ -17,6 +17,9 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
+#ifndef SCREEN_H
+#define SCREEN_H
+
 // screen.h
 
 void	SCR_Init (void);
@@ -59,4 +62,6 @@ qboolean SCR_DrawCinematic (void);
 void SCR_RunCinematic (void);
 void SCR_StopCinematic (void);
 void SCR_FinishCinematic (void);
+
+#endif
 

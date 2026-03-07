@@ -17,6 +17,9 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
+#ifndef VID_H
+#define VID_H
+
 // vid.h -- video driver defs
 
 typedef struct vrect_s
@@ -40,3 +43,5 @@ void	VID_CheckChanges (void);
 void	VID_MenuInit( void );
 void	VID_MenuDraw( void );
 const char *VID_MenuKey( int );
+
+#endif

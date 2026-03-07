@@ -17,7 +17,10 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-	
+
+#ifndef Q_SHARED_H
+#define Q_SHARED_H
+
 // q_shared.h -- included first by ALL program modules
 
 #ifdef _WIN32
@@ -52,6 +55,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 typedef unsigned char 		byte;
+
+/* Modern compilers define true/false as keywords or macros.
+   Temporarily undefine them so the Quake 2 qboolean enum compiles. */
+#ifdef true
+#undef true
+#undef false
+#endif
 typedef enum {false, true}	qboolean;
 
 
@@ -70,7 +80,9 @@ typedef enum {false, true}	qboolean;
 #define	MAX_TOKEN_CHARS		128		// max length of an individual token
 
 #define	MAX_QPATH			64		// max length of a quake game pathname
+#ifndef MAX_OSPATH
 #define	MAX_OSPATH			128		// max length of a filesystem pathname
+#endif
 
 //
 // per-level limits
@@ -1198,3 +1210,5 @@ typedef struct
 extern int vidref_val;
 // PGM
 // ==================
+
+#endif /* Q_SHARED_H */
