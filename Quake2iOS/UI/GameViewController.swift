@@ -14,7 +14,8 @@ class GameViewController: UIViewController {
     private var lastTimestamp: CFTimeInterval = 0
     private var engineInitialized = false
 
-    private var touchControlsView: TouchControlsView!
+    private var touchControlsView: TouchControlsView?
+    private var overlayWindow: UIWindow?
     private var controllerManager: GameControllerManager!
 
     override var prefersStatusBarHidden: Bool { true }
@@ -26,13 +27,22 @@ class GameViewController: UIViewController {
         view.backgroundColor = .black
 
         setupMetalView()
-        setupTouchControls()
+
+        /* touchControlsView is created in setupOverlayWindow once
+           the overlay window's scene is available. */
+
         setupControllerManager()
         observeAppLifecycle()
     }
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+
+        /* Create the overlay window here — view.window.windowScene is
+           only available after the view is in the window hierarchy. */
+        if overlayWindow == nil {
+            setupOverlayWindow()
+        }
 
         /* Initialize engine AFTER the view is laid out so the
            CAMetalLayer has a valid drawableSize (non-zero). */
@@ -44,7 +54,7 @@ class GameViewController: UIViewController {
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        touchControlsView.frame = view.bounds
+        overlayWindow?.frame = UIScreen.main.bounds
     }
 
     // MARK: - Metal View Setup
@@ -68,10 +78,42 @@ class GameViewController: UIViewController {
 
     // MARK: - Touch Controls
 
-    private func setupTouchControls() {
-        touchControlsView = TouchControlsView(frame: view.bounds)
-        touchControlsView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        view.addSubview(touchControlsView)
+    private func setupOverlayWindow() {
+        /* Use a separate UIWindow so touch controls composite above Metal.
+           CAMetalLayer drawables override normal UIView compositing,
+           so a higher-level window is the reliable solution.
+           iOS 13+ requires a windowScene for the window to be visible. */
+        guard let scene = UIApplication.shared.connectedScenes
+                .compactMap({ $0 as? UIWindowScene }).first else {
+            NSLog("Quake2 ERROR: No UIWindowScene found — cannot create overlay window!")
+            return
+        }
+
+
+        let overlay = UIWindow(windowScene: scene)
+        overlay.windowLevel = .statusBar + 1
+        overlay.backgroundColor = .clear
+        overlay.isUserInteractionEnabled = true
+        overlay.isHidden = false
+
+        let overlayVC = UIViewController()
+        overlayVC.view.backgroundColor = .clear
+        overlay.rootViewController = overlayVC
+
+        overlay.makeKeyAndVisible()
+        overlay.layoutIfNeeded()
+
+        /* Create touchControlsView fresh inside the overlay window context.
+           Moving views between windows can cause rendering issues. */
+        let controls = TouchControlsView(frame: overlayVC.view.bounds)
+        controls.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        overlayVC.view.addSubview(controls)
+        touchControlsView = controls
+
+        overlayWindow = overlay
+
+
+
     }
 
     // MARK: - Controller Manager
@@ -79,10 +121,10 @@ class GameViewController: UIViewController {
     private func setupControllerManager() {
         controllerManager = GameControllerManager()
         controllerManager.onControllerConnected = { [weak self] in
-            self?.touchControlsView.isHidden = true
+            self?.touchControlsView?.isHidden = true
         }
         controllerManager.onControllerDisconnected = { [weak self] in
-            self?.touchControlsView.isHidden = false
+            self?.touchControlsView?.isHidden = false
         }
     }
 
@@ -159,7 +201,13 @@ class GameViewController: UIViewController {
         /* Apply controller input if connected */
         controllerManager.pollInput()
 
+        /* Apply continuous look input from touch joystick */
+        touchControlsView?.applyLookInput()
+
         Quake2_Frame(msec)
+
+        /* Update touch controls state (show game buttons once a game starts) */
+        touchControlsView?.updateGameState()
     }
 
     // MARK: - App Lifecycle (pause/resume)
@@ -178,29 +226,34 @@ class GameViewController: UIViewController {
     }
 
     @objc private func appWillResignActive() {
-        guard engineInitialized, !isPaused else { return }
+        guard engineInitialized else { return }
         isPaused = true
         displayLink?.isPaused = true
         Quake2_Pause()
     }
 
     @objc private func appDidBecomeActive() {
-        guard engineInitialized, isPaused else { return }
+        guard engineInitialized else { return }
         isPaused = false
         displayLink?.isPaused = false
         lastTimestamp = CACurrentMediaTime()
-        Quake2_Resume()
+        /* Don't auto-resume — let the user resume via the menu/gear button.
+           This prevents the game from unpausing in the background. */
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         displayLink?.invalidate()
         displayLink = nil
+        overlayWindow?.isHidden = true
+        overlayWindow = nil
         NotificationCenter.default.removeObserver(self)
     }
 
     deinit {
         displayLink?.invalidate()
+        overlayWindow?.isHidden = true
+        overlayWindow = nil
         NotificationCenter.default.removeObserver(self)
         if engineInitialized {
             Quake2_Shutdown()

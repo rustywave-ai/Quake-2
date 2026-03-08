@@ -73,12 +73,14 @@ void Quake2_Frame(int msec)
 
 void Quake2_Pause(void)
 {
-    Cbuf_AddText("pause\n");
+    /* Only pause if not already paused (idempotent) */
+    if (!Cvar_VariableValue("paused"))
+        Cbuf_AddText("pause\n");
 }
 
 void Quake2_Resume(void)
 {
-    /* Unpause if paused — the pause command toggles */
+    /* Only unpause if currently paused (idempotent) */
     if (Cvar_VariableValue("paused"))
         Cbuf_AddText("pause\n");
 }

@@ -10,7 +10,7 @@ class VirtualJoystick: UIView {
     /* Output: normalized direction vector (-1..1) */
     var xAxis: Float = 0
     var yAxis: Float = 0
-    var isActive: Bool { trackingTouch != nil }
+    var isActive: Bool { _isActive }
 
     /* Appearance */
     private let outerRadius: CGFloat = 60
@@ -18,7 +18,7 @@ class VirtualJoystick: UIView {
     private let deadZone: CGFloat = 0.15
 
     /* State */
-    private var trackingTouch: UITouch?
+    private var _isActive = false
     private var origin = CGPoint.zero
     private var stickOffset = CGPoint.zero
 
@@ -35,6 +35,7 @@ class VirtualJoystick: UIView {
     // MARK: - Touch Handling (called by parent)
 
     func touchBegan(at point: CGPoint) {
+        _isActive = true
         origin = point
         stickOffset = .zero
         xAxis = 0
@@ -75,6 +76,7 @@ class VirtualJoystick: UIView {
     }
 
     func touchEnded() {
+        _isActive = false
         xAxis = 0
         yAxis = 0
         stickOffset = .zero

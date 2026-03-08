@@ -15,7 +15,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
         window = UIWindow(frame: UIScreen.main.bounds)
-        window?.rootViewController = MainMenuViewController()
+        window?.backgroundColor = .black
+        window?.rootViewController = GameViewController()
         window?.makeKeyAndVisible()
         return true
     }

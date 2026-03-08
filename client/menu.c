@@ -308,6 +308,10 @@ and both above and below y.
 */
 void M_DrawCursor( int x, int y, int f )
 {
+#ifdef __IOS__
+	/* iOS is touch-first — no selection cursor needed */
+	return;
+#endif
 	char	cursorname[80];
 	static qboolean cached;
 
@@ -4011,6 +4015,109 @@ void M_Keydown (int key)
 	if (m_keyfunc)
 		if ( ( s = m_keyfunc( key ) ) != 0 )
 			S_StartLocalSound( ( char * ) s );
+}
+
+/*
+=================
+M_TouchEvent
+
+iOS touch-based menu item selection.
+Maps touch coordinates (in viddef/point space) directly
+to menu items and activates the touched item.
+=================
+*/
+void M_TouchEvent (int x, int y)
+{
+	if (m_drawfunc == M_Main_Draw)
+	{
+		/* ---- Main menu: image-based items ---- */
+		int i, w, h;
+		int ystart, xoffset, widest = -1;
+		char *names[] = {
+			"m_main_game",
+			"m_main_multiplayer",
+			"m_main_options",
+			"m_main_video",
+			"m_main_quit",
+			0
+		};
+
+		for (i = 0; names[i] != 0; i++)
+		{
+			re.DrawGetPicSize(&w, &h, names[i]);
+			if (w > widest)
+				widest = w;
+		}
+
+		ystart = (viddef.height / 2 - 110);
+		xoffset = (viddef.width - widest + 70) / 2;
+
+		for (i = 0; names[i] != 0; i++)
+		{
+			int item_y = ystart + i * 40 + 13;
+
+			re.DrawGetPicSize(&w, &h, names[i]);
+
+			if (x >= xoffset && x < xoffset + w &&
+				y >= item_y && y < item_y + h)
+			{
+				/* Skip multiplayer (index 1) — single player only */
+				if (i == 1)
+					return;
+
+				m_main_cursor = i;
+				M_Main_Key(K_ENTER);
+				return;
+			}
+		}
+
+		/* Touch outside all items — close menu */
+		M_ForceMenuOff();
+		return;
+	}
+
+	/* ---- Framework-based submenus ---- */
+	if (ios_current_menu)
+	{
+		menuframework_s *menu = ios_current_menu;
+		int i;
+
+		for (i = 0; i < menu->nitems; i++)
+		{
+			menucommon_s *item = (menucommon_s *)menu->items[i];
+
+			/* Skip separators — they're not interactive */
+			if (item->type == MTYPE_SEPARATOR)
+				continue;
+
+			int item_y = menu->y + item->y;
+
+			/* Calculate item height: distance to next item, or 10 */
+			int item_h = 10;
+			if (i + 1 < menu->nitems)
+			{
+				menucommon_s *next = (menucommon_s *)menu->items[i + 1];
+				item_h = next->y - item->y;
+				if (item_h <= 0)
+					item_h = 10;
+			}
+
+			if (y >= item_y && y < item_y + item_h)
+			{
+				/* Skip grayed-out items */
+				if (item->flags & QMF_GRAYED)
+					return;
+
+				menu->cursor = i;
+				Menu_SelectItem(menu);
+				return;
+			}
+		}
+
+		/* Touch outside all items — go back one level */
+		M_PopMenu();
+		return;
+	}
 }
 
 
