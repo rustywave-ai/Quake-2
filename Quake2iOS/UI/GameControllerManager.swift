@@ -48,9 +48,11 @@ class GameControllerManager {
             name: .GCControllerDidDisconnect, object: nil
         )
 
-        /* Check for already-connected controllers */
-        if let existing = GCController.controllers().first {
+        /* Check for already-connected controllers — only real gamepads
+           with thumbsticks, not keyboards or mice. */
+        if let existing = GCController.controllers().first(where: { $0.extendedGamepad != nil }) {
             configureController(existing)
+            onControllerConnected?()
         }
     }
 
@@ -62,7 +64,8 @@ class GameControllerManager {
     // MARK: - Connection
 
     @objc private func controllerConnected(_ notification: Notification) {
-        guard let gc = notification.object as? GCController else { return }
+        guard let gc = notification.object as? GCController,
+              gc.extendedGamepad != nil else { return }
         configureController(gc)
         onControllerConnected?()
     }
@@ -182,14 +185,27 @@ class GameControllerManager {
     // MARK: - Input Polling
 
     func pollInput() {
-        guard controller != nil else { return }
+        /* Only poll when a real gamepad with thumbsticks is connected.
+           On the iOS Simulator, the keyboard registers as a GCController
+           but has no extendedGamepad — polling it would zero out the
+           touch joystick values every frame. */
+        guard controller?.extendedGamepad != nil else { return }
 
         /* Movement — left stick with dead zone */
         var mx = leftStickX
         var my = leftStickY
         if abs(mx) < stickDeadZone { mx = 0 }
         if abs(my) < stickDeadZone { my = 0 }
+        /* Analog values for direct cmd injection */
         IOS_SetJoystickInput(my, mx)
+        /* D-pad key commands for CL_BaseMove path */
+        let dpadThreshold: Float = 0.3
+        IOS_SetMovementKeys(
+            my >  dpadThreshold ? 1 : 0,   /* forward */
+            my < -dpadThreshold ? 1 : 0,   /* back */
+            mx < -dpadThreshold ? 1 : 0,   /* left */
+            mx >  dpadThreshold ? 1 : 0    /* right */
+        )
 
         /* Look — right stick with dead zone */
         var lx = rightStickX

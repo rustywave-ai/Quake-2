@@ -7,35 +7,62 @@ import UIKit
 
 class TouchControlsView: UIView {
 
-    /* Quake key codes (from game/q_shared.h) */
+    /* Quake key codes (from client/keys.h) */
     private let K_ENTER: Int32 = 13       /* Select */
     private let K_ESCAPE: Int32 = 27      /* Menu */
     private let K_SPACE: Int32 = 32       /* Jump */
     private let K_UPARROW: Int32 = 128
     private let K_DOWNARROW: Int32 = 129
-    private let K_CTRL: Int32 = 157       /* Crouch — K_CTRL */
-    private let K_MOUSE1: Int32 = 179     /* Fire */
-    private let K_MWHEELUP: Int32 = 185   /* Next weapon */
-    private let K_MWHEELDOWN: Int32 = 186 /* Prev weapon */
+    private let K_MOUSE1: Int32 = 200     /* Fire — K_MOUSE1 */
+
+    /* Use AUX keys for touch buttons — bound to commands in IN_Init */
+    private let K_AUX1: Int32 = 207       /* Crouch → +movedown */
+    private let K_AUX2: Int32 = 208       /* Weapon next → weapnext */
+    private let K_AUX3: Int32 = 209       /* Weapon prev → weapprev */
+    private let K_AUX4: Int32 = 210       /* D-pad forward → +forward */
+    private let K_AUX5: Int32 = 211       /* D-pad back → +back */
+    private let K_AUX6: Int32 = 212       /* D-pad strafe left → +moveleft */
+    private let K_AUX7: Int32 = 213       /* D-pad strafe right → +moveright */
 
     /* Sub-views */
     private let joystick = VirtualJoystick()
+    private let lookJoystick = VirtualJoystick()
     private var actionButtons: [ActionButton] = []
+    private var gearButton: ActionButton?
 
     /* Game state — action buttons hidden until a real game starts */
     private(set) var gameControlsVisible = false {
         didSet {
             for btn in actionButtons { btn.isHidden = !gameControlsVisible }
+            gearButton?.isHidden = !gameControlsVisible
+            /* Clear stale input when transitioning into gameplay */
+            if gameControlsVisible && !oldValue {
+                IOS_ClearInputState()
+                /* Reset Swift-side joystick key state to match */
+                joyFwdDown = false
+                joyBackDown = false
+                joyLeftDown = false
+                joyRightDown = false
+            }
         }
     }
 
-    /* Look tracking */
+    /* Touch tracking */
     private var lookTouch: UITouch?
-    private var lookPrevPoint = CGPoint.zero
-    private let lookSensitivity: Float = 0.25
+    private var joystickTouch: UITouch?
+
+    /* Look joystick speed — degrees per frame at full deflection */
+    private let lookSpeed: Float = 15.0
+
+    /* Button touch tracking — maps each touch to its button so UP events
+       are always sent even if the finger slides off the button */
+    private var buttonTouches: [ObjectIdentifier: ActionButton] = [:]
 
     /* Joystick zone: left 35% of screen */
     private var joystickZoneWidth: CGFloat { bounds.width * 0.35 }
+
+    /* D-pad threshold for joystick → key events */
+    private let dpadThreshold: Float = 0.3
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -44,10 +71,13 @@ class TouchControlsView: UIView {
         backgroundColor = .clear
 
         addSubview(joystick)
+        addSubview(lookJoystick)
         setupButtons()
+        setupGearButton()
 
         /* Start with action buttons hidden */
         for btn in actionButtons { btn.isHidden = true }
+        gearButton?.isHidden = true
     }
 
     required init?(coder: NSCoder) {
@@ -57,14 +87,27 @@ class TouchControlsView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         joystick.frame = bounds
+        lookJoystick.frame = bounds
         layoutButtons()
+    }
+
+    /// Called each frame to apply continuous look input from the look joystick.
+    /// Unlike movement (threshold-based key events), look input is analog —
+    /// the further the stick is deflected, the faster the view rotates.
+    func applyLookInput() {
+        guard lookJoystick.isActive else { return }
+        let x = lookJoystick.xAxis
+        let y = lookJoystick.yAxis
+        if x != 0 || y != 0 {
+            IOS_SetLookInput(x * lookSpeed, -y * lookSpeed)
+        }
     }
 
     /// Called each frame to sync game controls visibility with engine state.
     /// Action buttons only appear when the player is in an actual game
     /// (not during attract/demo loop or disconnected state).
     func updateGameState() {
-        let inGame = IOS_IsInGame() != 0
+        let inGame = IOS_IsInGame() != 0 && IOS_IsInCinematic() == 0
         if inGame != gameControlsVisible {
             gameControlsVisible = inGame
         }
@@ -74,17 +117,27 @@ class TouchControlsView: UIView {
 
     private func setupButtons() {
         let buttonDefs: [(String, Int32)] = [
-            ("Fire", K_MOUSE1),
-            ("Jump", K_SPACE),
-            ("Crouch", K_CTRL),
-            ("▲", K_MWHEELUP),
-            ("▼", K_MWHEELDOWN),
+            ("Fire", K_MOUSE1),       /* 0: right-side fire */
+            ("Jump", K_SPACE),        /* 1: jump */
+            ("Crouch", K_AUX1),       /* 2: crouch */
+            ("\u{25B2}", K_AUX2),     /* 3: weapon next */
+            ("\u{25BC}", K_AUX3),     /* 4: weapon prev */
+            ("Fire", K_MOUSE1),       /* 5: left-side fire */
         ]
         for (title, key) in buttonDefs {
             let btn = ActionButton(title: title, keyCode: key)
             addSubview(btn)
             actionButtons.append(btn)
         }
+    }
+
+    private func setupGearButton() {
+        /* Gear icon — opens/closes menu (pauses SP game) */
+        let gear = ActionButton(title: "\u{2699}\u{FE0F}", keyCode: K_ESCAPE, fontSize: 22)
+        gear.backgroundColor = UIColor(white: 0.15, alpha: 0.5)
+        gear.layer.borderWidth = 1.0
+        addSubview(gear)
+        gearButton = gear
     }
 
     private func layoutButtons() {
@@ -148,6 +201,27 @@ class TouchControlsView: UIView {
             )
             wepDown.layer.cornerRadius = 22
         }
+
+        /* Left-side fire — upper left for index finger (CoDM/PUBG style) */
+        if actionButtons.count > 5 {
+            let leftFire = actionButtons[5]
+            leftFire.frame = CGRect(
+                x: safeArea.left + 20,
+                y: safeArea.top + 60,
+                width: 64, height: 64
+            )
+            leftFire.layer.cornerRadius = 32
+        }
+
+        /* Gear button — top-right, industry-standard position */
+        if let gear = gearButton {
+            gear.frame = CGRect(
+                x: rightMargin - 40,
+                y: safeArea.top + 12,
+                width: 40, height: 40
+            )
+            gear.layer.cornerRadius = 20
+        }
     }
 
     // MARK: - Touch Handling
@@ -156,66 +230,89 @@ class TouchControlsView: UIView {
         for touch in touches {
             let point = touch.location(in: self)
 
-            /* When game controls are visible, check action buttons first */
-            if gameControlsVisible && handleButtonTouch(touch, began: true) {
-                continue
+            /* Gear button — always check first when game controls visible */
+            if gameControlsVisible, let gear = gearButton, !gear.isHidden {
+                if gear.frame.insetBy(dx: -10, dy: -10).contains(point) {
+                    sendKeyTap(K_ESCAPE)
+                    continue
+                }
             }
 
-            /* When menu is active, taps navigate the menu */
-            if IOS_IsMenuActive() != 0 {
-                handleMenuTouch(at: point)
+            /* During a cutscene, any tap skips it.
+               Q2 skips cinematics when cmd->buttons is set (cl_input.c:494),
+               so we send a fire (K_MOUSE1) press, not K_ESCAPE (which opens the menu). */
+            if IOS_IsInCinematic() != 0 {
+                sendKeyTap(K_MOUSE1)
                 continue
             }
 
             /* Before a game starts, any tap opens the menu */
             if !gameControlsVisible {
-                sendKeyTap(K_ESCAPE)
+                if IOS_IsMenuActive() != 0 {
+                    handleMenuTouch(at: point)
+                } else {
+                    sendKeyTap(K_ESCAPE)
+                }
                 continue
             }
 
-            /* In-game touch zones */
-            if point.x < joystickZoneWidth {
-                /* Left zone — joystick */
+            /* When menu is active during gameplay, taps navigate the menu */
+            if IOS_IsMenuActive() != 0 {
+                handleMenuTouch(at: point)
+                continue
+            }
+
+            /* ── In-game touch zones ── */
+
+            /* Action buttons first — exact frame hit test (no expansion)
+               so D-pad buttons on the left side can be tapped. */
+            if handleButtonTouchBegan(touch) {
+                continue
+            }
+
+            /* Joystick zone (left 35%) — only if no button was hit */
+            if point.x < joystickZoneWidth && joystickTouch == nil {
+                joystickTouch = touch
                 joystick.touchBegan(at: point)
-                updateJoystickInput()
-            } else {
-                /* Right zone — look */
-                if lookTouch == nil {
-                    lookTouch = touch
-                    lookPrevPoint = point
-                }
+                updateMovementInput()
+                continue
+            }
+
+            /* Right zone — look joystick */
+            if lookTouch == nil {
+                lookTouch = touch
+                lookJoystick.touchBegan(at: point)
             }
         }
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard gameControlsVisible else { return }
         for touch in touches {
             let point = touch.location(in: self)
 
-            if joystick.isActive && touch != lookTouch {
-                joystick.touchMoved(to: point)
-                updateJoystickInput()
-            }
+            guard gameControlsVisible else { continue }
 
-            if touch === lookTouch {
-                let dx = Float(point.x - lookPrevPoint.x) * lookSensitivity
-                let dy = Float(point.y - lookPrevPoint.y) * lookSensitivity
-                IOS_SetLookInput(dx, dy)
-                lookPrevPoint = point
+            if touch === joystickTouch {
+                joystick.touchMoved(to: point)
+                updateMovementInput()
+            } else if touch === lookTouch {
+                lookJoystick.touchMoved(to: point)
             }
         }
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
-            if gameControlsVisible { handleButtonTouch(touch, began: false) }
+            /* Release button via touch tracking dictionary */
+            handleButtonTouchEnded(touch)
 
             if touch === lookTouch {
                 lookTouch = nil
-            } else if joystick.isActive {
+                lookJoystick.touchEnded()
+            } else if touch === joystickTouch {
+                joystickTouch = nil
                 joystick.touchEnded()
-                updateJoystickInput()
+                updateMovementInput()
             }
         }
     }
@@ -241,23 +338,68 @@ class TouchControlsView: UIView {
         }
     }
 
-    // MARK: - Helpers
+    // MARK: - Joystick → Movement
 
-    private func updateJoystickInput() {
-        IOS_SetJoystickInput(joystick.yAxis, joystick.xAxis)
+    /* Joystick movement state — track which directions are active to
+       send Key_Event only on transitions (down→up or up→down). */
+    private var joyFwdDown = false
+    private var joyBackDown = false
+    private var joyLeftDown = false
+    private var joyRightDown = false
+
+    /// Converts joystick axis values into Key_Event calls using the same
+    /// proven path as the D-pad buttons (IOS_KeyEvent → Key_Event → AUX
+    /// binding → +forward/+back/+moveleft/+moveright).
+    private func updateMovementInput() {
+        let fwd   = joystick.yAxis >  dpadThreshold
+        let back  = joystick.yAxis < -dpadThreshold
+        let left  = joystick.xAxis < -dpadThreshold
+        let right = joystick.xAxis >  dpadThreshold
+
+        if fwd != joyFwdDown {
+            joyFwdDown = fwd
+            IOS_KeyEvent(K_AUX4, fwd ? 1 : 0)
+        }
+        if back != joyBackDown {
+            joyBackDown = back
+            IOS_KeyEvent(K_AUX5, back ? 1 : 0)
+        }
+        if left != joyLeftDown {
+            joyLeftDown = left
+            IOS_KeyEvent(K_AUX6, left ? 1 : 0)
+        }
+        if right != joyRightDown {
+            joyRightDown = right
+            IOS_KeyEvent(K_AUX7, right ? 1 : 0)
+        }
     }
 
-    @discardableResult
-    private func handleButtonTouch(_ touch: UITouch, began: Bool) -> Bool {
+    // MARK: - Button Touch Tracking
+
+    /// Checks if a touch began on an action button. If so, sends key DOWN,
+    /// stores the touch→button mapping, and returns true.
+    private func handleButtonTouchBegan(_ touch: UITouch) -> Bool {
         let point = touch.location(in: self)
         for button in actionButtons where !button.isHidden {
-            if button.frame.insetBy(dx: -10, dy: -10).contains(point) {
-                IOS_KeyEvent(button.keyCode, began ? 1 : 0)
-                button.isHighlighted = began
+            if button.frame.contains(point) {
+                IOS_KeyEvent(button.keyCode, 1)
+                button.isHighlighted = true
+                buttonTouches[ObjectIdentifier(touch)] = button
                 return true
             }
         }
         return false
+    }
+
+    /// Releases the button associated with this touch (if any),
+    /// regardless of where the finger currently is.
+    private func handleButtonTouchEnded(_ touch: UITouch) {
+        let id = ObjectIdentifier(touch)
+        if let button = buttonTouches[id] {
+            IOS_KeyEvent(button.keyCode, 0)
+            button.isHighlighted = false
+            buttonTouches.removeValue(forKey: id)
+        }
     }
 }
 
@@ -275,7 +417,7 @@ private class ActionButton: UIView {
         }
     }
 
-    init(title: String, keyCode: Int32) {
+    init(title: String, keyCode: Int32, fontSize: CGFloat = 15) {
         self.keyCode = keyCode
         super.init(frame: .zero)
 
@@ -285,7 +427,7 @@ private class ActionButton: UIView {
 
         label.text = title
         label.textColor = .white
-        label.font = .boldSystemFont(ofSize: 15)
+        label.font = .boldSystemFont(ofSize: fontSize)
         label.textAlignment = .center
         label.translatesAutoresizingMaskIntoConstraints = false
         addSubview(label)

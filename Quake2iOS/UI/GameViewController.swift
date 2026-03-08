@@ -201,6 +201,9 @@ class GameViewController: UIViewController {
         /* Apply controller input if connected */
         controllerManager.pollInput()
 
+        /* Apply continuous look input from touch joystick */
+        touchControlsView?.applyLookInput()
+
         Quake2_Frame(msec)
 
         /* Update touch controls state (show game buttons once a game starts) */
@@ -223,18 +226,19 @@ class GameViewController: UIViewController {
     }
 
     @objc private func appWillResignActive() {
-        guard engineInitialized, !isPaused else { return }
+        guard engineInitialized else { return }
         isPaused = true
         displayLink?.isPaused = true
         Quake2_Pause()
     }
 
     @objc private func appDidBecomeActive() {
-        guard engineInitialized, isPaused else { return }
+        guard engineInitialized else { return }
         isPaused = false
         displayLink?.isPaused = false
         lastTimestamp = CACurrentMediaTime()
-        Quake2_Resume()
+        /* Don't auto-resume — let the user resume via the menu/gear button.
+           This prevents the game from unpausing in the background. */
     }
 
     override func viewWillDisappear(_ animated: Bool) {

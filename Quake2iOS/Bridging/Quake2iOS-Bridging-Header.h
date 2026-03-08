@@ -23,11 +23,15 @@ void Quake2_Shutdown(void);
 
 /* Touch/controller input — implemented in in_ios.m */
 void IOS_SetJoystickInput(float forwardmove, float sidemove);
+void IOS_SetMovementKeys(int fwd, int back, int left, int right);
 void IOS_SetLookInput(float yawDelta, float pitchDelta);
 void IOS_KeyEvent(int key, int down);
+void IOS_ClearInputState(void);
 int  IOS_IsMenuActive(void);
 int  IOS_IsConsoleActive(void);
 int  IOS_IsInGame(void);
+int  IOS_IsInCinematic(void);
+int  IOS_GetPausedState(void);
 void IOS_MenuTouchAt(int x, int y);
 void IOS_SetControllerConnected(int connected);
 int  IOS_IsControllerConnected(void);
