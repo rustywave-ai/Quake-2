@@ -1542,7 +1542,7 @@ static void R_DrawChar(int x, int y, int c)
     c &= 255;
     if (c == ' ' || c == 0) return;
 
-    if (!mtl.concharsImage) {
+    if (!mtl.concharsImage || !mtl.concharsImage->texture) {
         mtl.concharsImage = Metal_FindImage("pics/conchars.pcx", it_pic);
         if (!mtl.concharsImage) return;
     }
@@ -1583,7 +1583,7 @@ static void R_DrawScaledChar(int x, int y, int c, float scale)
     c &= 255;
     if (c == ' ' || c == 0) return;
 
-    if (!mtl.concharsImage) {
+    if (!mtl.concharsImage || !mtl.concharsImage->texture) {
         mtl.concharsImage = Metal_FindImage("pics/conchars.pcx", it_pic);
         if (!mtl.concharsImage) return;
     }

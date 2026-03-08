@@ -3900,6 +3900,101 @@ QUIT MENU
 =======================================================================
 */
 
+/*
+** Quit screen layout — original picture scaled 1.5× with circle overlays.
+** The quit.pcx source image is 320×240. At 1.5× it becomes 480×360,
+** filling the virtual screen height and centering horizontally.
+** Y and N character positions were found by analyzing the PCX pixel data
+** and are multiplied by the scale factor for on-screen placement.
+*/
+#define QUIT_PIC_SCALE		1.5f
+#define QUIT_PIC_W			((int)(320 * QUIT_PIC_SCALE))	/* 480 */
+#define QUIT_PIC_H			((int)(240 * QUIT_PIC_SCALE))	/* 360 */
+#define QUIT_PIC_X			((viddef.width - QUIT_PIC_W) / 2)
+#define QUIT_PIC_Y			((viddef.height - QUIT_PIC_H) / 2)
+/* Y and N character centers (source image offsets × scale) */
+#define QUIT_Y_IMG_X		((int)(179 * QUIT_PIC_SCALE))
+#define QUIT_N_IMG_X		((int)(205 * QUIT_PIC_SCALE))
+#define QUIT_YN_IMG_Y		((int)(64 * QUIT_PIC_SCALE))
+/* On-screen circle centers */
+#define QUIT_Y_CX			(QUIT_PIC_X + QUIT_Y_IMG_X)
+#define QUIT_N_CX			(QUIT_PIC_X + QUIT_N_IMG_X)
+#define QUIT_BUTTON_CY		(QUIT_PIC_Y + QUIT_YN_IMG_Y)
+/* Visual circle radius (scaled to match larger image) */
+#define QUIT_CIRCLE_RADIUS	20
+/* Touch hit radius (larger for usability) */
+#define QUIT_TOUCH_RADIUS	30
+
+static void M_Quit_Confirm (void)
+{
+	M_ForceMenuOff ();
+	CL_Disconnect ();			/* clean disconnect (not Com_Error) */
+	Cbuf_AddText ("d1\n");		/* restart the attract loop (id logo → demo) */
+}
+
+static void M_DrawCircleOutline (int cx, int cy, int radius, int color)
+{
+	/*
+	 * Scanline circle outline — for each row in the circle's bounding box,
+	 * compute the x-intersections of the outer and inner circles and draw
+	 * short horizontal segments for the left and right arcs.
+	 * This produces a 2px-thick outline using ~4 DrawFill calls per row
+	 * instead of ~16 per-pixel calls, keeping the Metal pipeline happy.
+	 */
+	int ro = radius;		/* outer radius */
+	int ri = radius - 2;	/* inner radius (2px thick) */
+	int dy;
+
+	if (ri < 0) ri = 0;
+
+	for (dy = -ro; dy <= ro; dy++)
+	{
+		/* outer circle x-extent at this row */
+		int oxSq = ro * ro - dy * dy;
+		int ox;
+		if (oxSq < 0) continue;
+		/* integer sqrt via loop (radius is small, <=50) */
+		for (ox = ro; ox * ox > oxSq; ox--) ;
+
+		/* inner circle x-extent at this row */
+		int ixSq = ri * ri - dy * dy;
+		int ix = -1;
+		if (ixSq >= 0)
+		{
+			for (ix = ri; ix * ix > ixSq; ix--) ;
+		}
+
+		if (ix >= 0)
+		{
+			/* Draw left arc: from -ox to -ix */
+			int lx = cx - ox;
+			int lw = (cx - ix) - lx;
+			if (lw > 0)
+				re.DrawFill(lx, cy + dy, lw, 1, color);
+
+			/* Draw right arc: from +ix to +ox */
+			int rx = cx + ix + 1;
+			int rw = (cx + ox + 1) - rx;
+			if (rw > 0)
+				re.DrawFill(rx, cy + dy, rw, 1, color);
+		}
+		else
+		{
+			/* This row is fully inside the outline (near poles) */
+			int lx = cx - ox;
+			int w = ox * 2 + 1;
+			re.DrawFill(lx, cy + dy, w, 1, color);
+		}
+	}
+}
+
+static void M_DrawScaledString (int x, int y, const char *string, float scale)
+{
+	int i, charSize = (int)(8 * scale);
+	for (i = 0; string[i]; i++)
+		re.DrawScaledChar(x + i * charSize, y, string[i], scale);
+}
+
 const char *M_Quit_Key (int key)
 {
 	switch (key)
@@ -3912,8 +4007,7 @@ const char *M_Quit_Key (int key)
 
 	case 'Y':
 	case 'y':
-		cls.key_dest = key_console;
-		CL_Quit_f ();
+		M_Quit_Confirm ();
 		break;
 
 	default:
@@ -3921,17 +4015,43 @@ const char *M_Quit_Key (int key)
 	}
 
 	return NULL;
-
 }
 
 
 void M_Quit_Draw (void)
 {
-	int		w, h;
+	/* Draw the original quit picture scaled 1.5× and centered */
+	re.DrawStretchPic (QUIT_PIC_X, QUIT_PIC_Y, QUIT_PIC_W, QUIT_PIC_H, "quit");
 
-	re.DrawGetPicSize (&w, &h, "quit");
-	re.DrawPic ( (viddef.width-w)/2, (viddef.height-h)/2, "quit");
+	/* Overlay circle outlines around Y and N to show they're tappable.
+	 * DrawFill (solid pipeline) comes after DrawStretchPic (textured);
+	 * the first DrawFill flushes and renders the picture, then circles
+	 * are drawn on top. */
+	M_DrawCircleOutline(QUIT_Y_CX, QUIT_BUTTON_CY, QUIT_CIRCLE_RADIUS, 7);
+	M_DrawCircleOutline(QUIT_N_CX, QUIT_BUTTON_CY, QUIT_CIRCLE_RADIUS, 7);
 }
+
+#if 0
+/* ---- Custom-drawn quit screen (fallback if picture approach doesn't work) ---- */
+static void M_Quit_Draw_Custom (void)
+{
+	int cx, cy;
+	const char *title = "QUIT GAME";
+	int titleWidth = (int)strlen(title) * 16;
+
+	M_DrawCircleOutline(viddef.width / 2 - 70, viddef.height / 2 + 10, 35, 7);
+	M_DrawCircleOutline(viddef.width / 2 + 70, viddef.height / 2 + 10, 35, 7);
+
+	M_DrawScaledString(viddef.width / 2 - titleWidth / 2,
+		viddef.height / 2 - 50, title, 2.0f);
+
+	cx = viddef.width / 2 - 70; cy = viddef.height / 2 + 10;
+	M_DrawScaledString(cx - 24, cy - 8, "YES", 2.0f);
+
+	cx = viddef.width / 2 + 70; cy = viddef.height / 2 + 10;
+	M_DrawScaledString(cx - 16, cy - 8, "NO", 2.0f);
+}
+#endif
 
 
 void M_Menu_Quit_f (void)
@@ -4028,6 +4148,45 @@ to menu items and activates the touched item.
 */
 void M_TouchEvent (int x, int y)
 {
+	/* ---- Quit confirmation screen ---- */
+	if (m_drawfunc == M_Quit_Draw)
+	{
+		int dx_y, dx_n, dy_btn;
+		int dist2_y, dist2_n;
+		int tr2 = QUIT_TOUCH_RADIUS * QUIT_TOUCH_RADIUS;
+
+		dy_btn = y - QUIT_BUTTON_CY;
+
+		dx_y = x - QUIT_Y_CX;
+		dist2_y = dx_y * dx_y + dy_btn * dy_btn;
+
+		dx_n = x - QUIT_N_CX;
+		dist2_n = dx_n * dx_n + dy_btn * dy_btn;
+
+		/* Y button — confirm quit (closest center wins if overlap) */
+		if (dist2_y <= tr2 && dist2_y <= dist2_n)
+		{
+			M_Quit_Confirm();
+			return;
+		}
+
+		/* N button — go back */
+		if (dist2_n <= tr2)
+		{
+			M_PopMenu();
+			return;
+		}
+
+		/* Inside the picture area — no action */
+		if (x >= QUIT_PIC_X && x <= QUIT_PIC_X + QUIT_PIC_W &&
+			y >= QUIT_PIC_Y && y <= QUIT_PIC_Y + QUIT_PIC_H)
+			return;
+
+		/* Outside picture — go back */
+		M_PopMenu();
+		return;
+	}
+
 	if (m_drawfunc == M_Main_Draw)
 	{
 		/* ---- Main menu: image-based items ---- */
@@ -4081,6 +4240,10 @@ void M_TouchEvent (int x, int y)
 	{
 		menuframework_s *menu = ios_current_menu;
 		int i;
+		int char_w = 16;	/* iOS: 2x scaled characters (MENU_CHAR_SIZE) */
+		int text_h = 16;	/* character height at 2x scale */
+		int pad_x = 12;	/* horizontal touch padding around text */
+		int pad_y = 4;		/* vertical touch padding (small to avoid overlap) */
 
 		for (i = 0; i < menu->nitems; i++)
 		{
@@ -4102,7 +4265,29 @@ void M_TouchEvent (int x, int y)
 					item_h = 10;
 			}
 
-			if (y >= item_y && y < item_y + item_h)
+			/* Calculate item X bounds from text position + width */
+			int item_x, item_w;
+			int name_len = item->name ? (int)strlen(item->name) : 0;
+
+			if (item->flags & QMF_LEFT_JUSTIFY)
+			{
+				item_x = menu->x + item->x - 16;	/* LCOLUMN_OFFSET */
+				item_w = name_len * char_w;
+			}
+			else
+			{
+				item_w = name_len * char_w;
+				item_x = menu->x + item->x - 16 - item_w;
+			}
+
+			/* Clamp vertical padding so adjacent items don't overlap */
+			int y_top = item_y - pad_y;
+			int y_bot = item_y + text_h + pad_y;
+			if (y_bot < item_y + item_h)
+				y_bot = item_y + item_h;	/* at least fill gap to next item */
+
+			if (x >= item_x - pad_x && x < item_x + item_w + pad_x &&
+				y >= y_top && y < y_bot)
 			{
 				/* Skip grayed-out items */
 				if (item->flags & QMF_GRAYED)
