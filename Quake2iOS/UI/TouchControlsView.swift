@@ -37,7 +37,7 @@ class TouchControlsView: UIView {
     private(set) var gameControlsVisible = false {
         didSet {
             for btn in actionButtons { btn.isHidden = !gameControlsVisible }
-            gearButton?.isHidden = !gameControlsVisible && !menuNavVisible
+            gearButton?.isHidden = !gameControlsVisible
             /* Clear stale input when transitioning into gameplay */
             if gameControlsVisible && !oldValue {
                 IOS_ClearInputState()
@@ -54,7 +54,7 @@ class TouchControlsView: UIView {
     private(set) var menuNavVisible = false {
         didSet {
             for btn in menuNavButtons { btn.isHidden = !menuNavVisible }
-            gearButton?.isHidden = !menuNavVisible && !gameControlsVisible
+            gearButton?.isHidden = !gameControlsVisible
         }
     }
 
