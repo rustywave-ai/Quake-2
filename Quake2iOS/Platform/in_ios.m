@@ -194,6 +194,7 @@ void IN_Init(void)
     m_pitch = Cvar_Get("m_pitch", "0.022", CVAR_ARCHIVE);
     m_yaw = Cvar_Get("m_yaw", "0.022", CVAR_ARCHIVE);
     lookstrafe = Cvar_Get("lookstrafe", "0", 0);
+    in_joystick = Cvar_Get("in_joystick", "0", CVAR_ARCHIVE);
 
     /* Bind AUX keys for touch buttons (crouch, weapon switch) */
     Cbuf_AddText("bind AUX1 +movedown\n");

@@ -47,7 +47,15 @@ extern viddef_t viddef;
 #define VID_HEIGHT viddef.height
 
 #define Draw_Char re.DrawChar
+#define Draw_ScaledChar re.DrawScaledChar
 #define Draw_Fill re.DrawFill
+
+#ifdef __IOS__
+#define MENU_CHAR_SCALE 2.0f
+#define MENU_CHAR_SIZE  (int)(8 * MENU_CHAR_SCALE)
+static void Menu_DrawStringScaled( int x, int y, const char *string );
+static void Menu_DrawStringDarkScaled( int x, int y, const char *string );
+#endif
 
 void Action_DoEnter( menuaction_s *a )
 {
@@ -57,20 +65,41 @@ void Action_DoEnter( menuaction_s *a )
 
 void Action_Draw( menuaction_s *a )
 {
+	int dx = a->generic.x + a->generic.parent->x + LCOLUMN_OFFSET;
+	int dy = a->generic.y + a->generic.parent->y;
+
+#if 0 /* IOS_TOUCH_MENUS — 2x scaled text for touch targets, disabled for button nav */
 	if ( a->generic.flags & QMF_LEFT_JUSTIFY )
 	{
 		if ( a->generic.flags & QMF_GRAYED )
-			Menu_DrawStringDark( a->generic.x + a->generic.parent->x + LCOLUMN_OFFSET, a->generic.y + a->generic.parent->y, a->generic.name );
+			Menu_DrawStringDarkScaled( dx, dy, a->generic.name );
 		else
-			Menu_DrawString( a->generic.x + a->generic.parent->x + LCOLUMN_OFFSET, a->generic.y + a->generic.parent->y, a->generic.name );
+			Menu_DrawStringScaled( dx, dy, a->generic.name );
+	}
+	else
+	{
+		/* Right-justified scaled not needed yet — fall through to normal */
+		if ( a->generic.flags & QMF_GRAYED )
+			Menu_DrawStringR2LDark( dx, dy, a->generic.name );
+		else
+			Menu_DrawStringR2L( dx, dy, a->generic.name );
+	}
+#else
+	if ( a->generic.flags & QMF_LEFT_JUSTIFY )
+	{
+		if ( a->generic.flags & QMF_GRAYED )
+			Menu_DrawStringDark( dx, dy, a->generic.name );
+		else
+			Menu_DrawString( dx, dy, a->generic.name );
 	}
 	else
 	{
 		if ( a->generic.flags & QMF_GRAYED )
-			Menu_DrawStringR2LDark( a->generic.x + a->generic.parent->x + LCOLUMN_OFFSET, a->generic.y + a->generic.parent->y, a->generic.name );
+			Menu_DrawStringR2LDark( dx, dy, a->generic.name );
 		else
-			Menu_DrawStringR2L( a->generic.x + a->generic.parent->x + LCOLUMN_OFFSET, a->generic.y + a->generic.parent->y, a->generic.name );
+			Menu_DrawStringR2L( dx, dy, a->generic.name );
 	}
+#endif
 	if ( a->generic.ownerdraw )
 		a->generic.ownerdraw( a );
 }
@@ -382,8 +411,6 @@ void Menu_Draw( menuframework_s *menu )
 
 	item = Menu_ItemAtCursor( menu );
 
-#ifndef __IOS__
-	/* iOS is touch-first — no selection cursor needed */
 	if ( item && item->cursordraw )
 	{
 		item->cursordraw( item );
@@ -403,7 +430,6 @@ void Menu_Draw( menuframework_s *menu )
 			Draw_Char( menu->x + item->cursor_offset, menu->y + item->y, 12 + ( ( int ) ( Sys_Milliseconds()/250 ) & 1 ) );
 		}
 	}
-#endif
 
 	if ( item )
 	{
@@ -478,6 +504,22 @@ void Menu_DrawStringR2LDark( int x, int y, const char *string )
 		Draw_Char( ( x - i*8 ), y, string[strlen(string)-i-1]+128 );
 	}
 }
+
+#ifdef __IOS__
+static void Menu_DrawStringScaled( int x, int y, const char *string )
+{
+	unsigned i;
+	for ( i = 0; i < strlen( string ); i++ )
+		Draw_ScaledChar( x + i * MENU_CHAR_SIZE, y, string[i], MENU_CHAR_SCALE );
+}
+
+static void Menu_DrawStringDarkScaled( int x, int y, const char *string )
+{
+	unsigned i;
+	for ( i = 0; i < strlen( string ); i++ )
+		Draw_ScaledChar( x + i * MENU_CHAR_SIZE, y, string[i] + 128, MENU_CHAR_SCALE );
+}
+#endif
 
 void *Menu_ItemAtCursor( menuframework_s *m )
 {

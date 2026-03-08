@@ -10,6 +10,7 @@
 #include "../../qcommon/qcommon.h"
 #include "../../client/vid.h"
 #include "../../client/ref.h"
+#include "../../client/qmenu.h"
 
 /* Forward declare the Metal renderer entry point */
 extern refexport_t Metal_GetRefAPI(refimport_t rimp);
@@ -77,9 +78,39 @@ static qboolean VID_GetModeInfo(int *width, int *height, int mode)
     return true;
 }
 
+/* ================================================================ */
+#pragma mark - Video Menu (iOS)
+/* ================================================================ */
+
+static menuframework_s	s_video_menu;
+static menuslider_s		s_brightness_slider;
+
+static void BrightnessCallback(void *s)
+{
+	menuslider_s *slider = (menuslider_s *)s;
+	/* Invert sense: greater slider value = brighter (lower gamma) */
+	float gamma = (0.8 - (slider->curvalue / 10.0 - 0.5)) + 0.5;
+	Cvar_SetValue("vid_gamma", gamma);
+}
+
 void VID_MenuInit(void)
 {
-    /* No video mode menu on iOS */
+	s_video_menu.x = viddef.width / 2;
+	s_video_menu.y = viddef.height / 2 - 58;
+	s_video_menu.nitems = 0;
+
+	s_brightness_slider.generic.type		= MTYPE_SLIDER;
+	s_brightness_slider.generic.x			= 0;
+	s_brightness_slider.generic.y			= 0;
+	s_brightness_slider.generic.name		= "brightness";
+	s_brightness_slider.generic.callback	= BrightnessCallback;
+	s_brightness_slider.minvalue			= 5;
+	s_brightness_slider.maxvalue			= 13;
+	s_brightness_slider.curvalue			= (1.3 - vid_gamma->value + 0.5) * 10;
+
+	Menu_AddItem(&s_video_menu, (void *)&s_brightness_slider);
+
+	Menu_Center(&s_video_menu);
 }
 
 static void VID_NewWindow(int width, int height)
@@ -156,12 +187,18 @@ void VID_CheckChanges(void)
 
 void VID_MenuDraw(void)
 {
-    /* No video menu on iOS */
+	int w, h;
+
+	re.DrawGetPicSize(&w, &h, "m_banner_video");
+	re.DrawPic(viddef.width / 2 - w / 2, viddef.height / 2 - 110, "m_banner_video");
+
+	Menu_AdjustCursor(&s_video_menu, 1);
+	Menu_Draw(&s_video_menu);
 }
 
 const char *VID_MenuKey(int k)
 {
-    return NULL;
+	return Default_MenuKey(&s_video_menu, k);
 }
 
 void IOS_SetVideoSize(int width, int height)

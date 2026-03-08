@@ -13,6 +13,8 @@ class TouchControlsView: UIView {
     private let K_SPACE: Int32 = 32       /* Jump */
     private let K_UPARROW: Int32 = 128
     private let K_DOWNARROW: Int32 = 129
+    private let K_LEFTARROW: Int32 = 130
+    private let K_RIGHTARROW: Int32 = 131
     private let K_MOUSE1: Int32 = 200     /* Fire — K_MOUSE1 */
 
     /* Use AUX keys for touch buttons — bound to commands in IN_Init */
@@ -28,13 +30,14 @@ class TouchControlsView: UIView {
     private let joystick = VirtualJoystick()
     private let lookJoystick = VirtualJoystick()
     private var actionButtons: [ActionButton] = []
+    private var menuNavButtons: [ActionButton] = []
     private var gearButton: ActionButton?
 
     /* Game state — action buttons hidden until a real game starts */
     private(set) var gameControlsVisible = false {
         didSet {
             for btn in actionButtons { btn.isHidden = !gameControlsVisible }
-            gearButton?.isHidden = !gameControlsVisible
+            gearButton?.isHidden = !gameControlsVisible && !menuNavVisible
             /* Clear stale input when transitioning into gameplay */
             if gameControlsVisible && !oldValue {
                 IOS_ClearInputState()
@@ -44,6 +47,14 @@ class TouchControlsView: UIView {
                 joyLeftDown = false
                 joyRightDown = false
             }
+        }
+    }
+
+    /* Menu navigation state — D-pad + Enter/Back shown when menu is active */
+    private(set) var menuNavVisible = false {
+        didSet {
+            for btn in menuNavButtons { btn.isHidden = !menuNavVisible }
+            gearButton?.isHidden = !menuNavVisible && !gameControlsVisible
         }
     }
 
@@ -74,9 +85,11 @@ class TouchControlsView: UIView {
         addSubview(lookJoystick)
         setupButtons()
         setupGearButton()
+        setupMenuNavButtons()
 
-        /* Start with action buttons hidden */
+        /* Start with all buttons hidden */
         for btn in actionButtons { btn.isHidden = true }
+        for btn in menuNavButtons { btn.isHidden = true }
         gearButton?.isHidden = true
     }
 
@@ -89,6 +102,7 @@ class TouchControlsView: UIView {
         joystick.frame = bounds
         lookJoystick.frame = bounds
         layoutButtons()
+        layoutMenuNavButtons()
     }
 
     /// Called each frame to apply continuous look input from the look joystick.
@@ -108,8 +122,13 @@ class TouchControlsView: UIView {
     /// (not during attract/demo loop or disconnected state).
     func updateGameState() {
         let inGame = IOS_IsInGame() != 0 && IOS_IsInCinematic() == 0
-        if inGame != gameControlsVisible {
-            gameControlsVisible = inGame
+        let shouldShow = inGame && IOS_IsMenuActive() == 0
+        if shouldShow != gameControlsVisible {
+            gameControlsVisible = shouldShow
+        }
+        let menuActive = IOS_IsMenuActive() != 0
+        if menuActive != menuNavVisible {
+            menuNavVisible = menuActive
         }
     }
 
@@ -138,6 +157,92 @@ class TouchControlsView: UIView {
         gear.layer.borderWidth = 1.0
         addSubview(gear)
         gearButton = gear
+    }
+
+    private func setupMenuNavButtons() {
+        let navDefs: [(String, Int32)] = [
+            ("\u{25B2}", K_UPARROW),      /* 0: up */
+            ("\u{25BC}", K_DOWNARROW),     /* 1: down */
+            ("\u{25C0}", K_LEFTARROW),     /* 2: left */
+            ("\u{25B6}", K_RIGHTARROW),    /* 3: right */
+            ("OK", K_ENTER),               /* 4: enter/select */
+            ("\u{2190}", K_ESCAPE),        /* 5: back */
+        ]
+        for (title, key) in navDefs {
+            let btn = ActionButton(title: title, keyCode: key, fontSize: 18)
+            addSubview(btn)
+            menuNavButtons.append(btn)
+        }
+    }
+
+    private func layoutMenuNavButtons() {
+        let safeArea = safeAreaInsets
+        let btnSize: CGFloat = 44
+        let gap: CGFloat = 22  /* >= btnSize/2 to prevent overlap in cross layout */
+
+        /* D-pad center — left side of screen */
+        let dpadCX = safeArea.left + 20 + btnSize + gap / 2
+        let dpadCY = bounds.height / 2
+
+        /* Up */
+        if menuNavButtons.count > 0 {
+            menuNavButtons[0].frame = CGRect(
+                x: dpadCX - btnSize / 2,
+                y: dpadCY - btnSize - gap,
+                width: btnSize, height: btnSize
+            )
+            menuNavButtons[0].layer.cornerRadius = btnSize / 4
+        }
+        /* Down */
+        if menuNavButtons.count > 1 {
+            menuNavButtons[1].frame = CGRect(
+                x: dpadCX - btnSize / 2,
+                y: dpadCY + gap,
+                width: btnSize, height: btnSize
+            )
+            menuNavButtons[1].layer.cornerRadius = btnSize / 4
+        }
+        /* Left */
+        if menuNavButtons.count > 2 {
+            menuNavButtons[2].frame = CGRect(
+                x: dpadCX - btnSize - gap,
+                y: dpadCY - btnSize / 2,
+                width: btnSize, height: btnSize
+            )
+            menuNavButtons[2].layer.cornerRadius = btnSize / 4
+        }
+        /* Right */
+        if menuNavButtons.count > 3 {
+            menuNavButtons[3].frame = CGRect(
+                x: dpadCX + gap,
+                y: dpadCY - btnSize / 2,
+                width: btnSize, height: btnSize
+            )
+            menuNavButtons[3].layer.cornerRadius = btnSize / 4
+        }
+
+        /* Enter/Back — right side of screen */
+        let rightX = bounds.width - safeArea.right - 20 - 60
+        let centerY = bounds.height / 2
+
+        /* Enter (OK) */
+        if menuNavButtons.count > 4 {
+            menuNavButtons[4].frame = CGRect(
+                x: rightX,
+                y: centerY - btnSize - gap / 2,
+                width: 60, height: btnSize
+            )
+            menuNavButtons[4].layer.cornerRadius = btnSize / 4
+        }
+        /* Back */
+        if menuNavButtons.count > 5 {
+            menuNavButtons[5].frame = CGRect(
+                x: rightX,
+                y: centerY + gap / 2,
+                width: 60, height: btnSize
+            )
+            menuNavButtons[5].layer.cornerRadius = btnSize / 4
+        }
     }
 
     private func layoutButtons() {
@@ -230,12 +335,22 @@ class TouchControlsView: UIView {
         for touch in touches {
             let point = touch.location(in: self)
 
-            /* Gear button — always check first when game controls visible */
-            if gameControlsVisible, let gear = gearButton, !gear.isHidden {
+            /* Gear button — check whenever it's visible (in-game or menu) */
+            if let gear = gearButton, !gear.isHidden {
                 if gear.frame.insetBy(dx: -10, dy: -10).contains(point) {
                     sendKeyTap(K_ESCAPE)
                     continue
                 }
+            }
+
+            /* Menu navigation — check D-pad/Enter/Back buttons, then
+               fall through to touch handling for quit/main menu */
+            if IOS_IsMenuActive() != 0 {
+                if handleButtonTouchBegan(touch) {
+                    continue
+                }
+                handleMenuTouch(at: point)
+                continue
             }
 
             /* During a cutscene, any tap skips it.
@@ -248,17 +363,7 @@ class TouchControlsView: UIView {
 
             /* Before a game starts, any tap opens the menu */
             if !gameControlsVisible {
-                if IOS_IsMenuActive() != 0 {
-                    handleMenuTouch(at: point)
-                } else {
-                    sendKeyTap(K_ESCAPE)
-                }
-                continue
-            }
-
-            /* When menu is active during gameplay, taps navigate the menu */
-            if IOS_IsMenuActive() != 0 {
-                handleMenuTouch(at: point)
+                sendKeyTap(K_ESCAPE)
                 continue
             }
 
@@ -380,7 +485,7 @@ class TouchControlsView: UIView {
     /// stores the touch→button mapping, and returns true.
     private func handleButtonTouchBegan(_ touch: UITouch) -> Bool {
         let point = touch.location(in: self)
-        for button in actionButtons where !button.isHidden {
+        for button in actionButtons + menuNavButtons where !button.isHidden {
             if button.frame.contains(point) {
                 IOS_KeyEvent(button.keyCode, 1)
                 button.isHighlighted = true
