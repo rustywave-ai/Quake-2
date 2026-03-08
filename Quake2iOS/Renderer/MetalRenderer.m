@@ -1578,6 +1578,48 @@ static void R_DrawChar(int x, int y, int c)
     mtl.hudVertexCount += 6;
 }
 
+static void R_DrawScaledChar(int x, int y, int c, float scale)
+{
+    c &= 255;
+    if (c == ' ' || c == 0) return;
+
+    if (!mtl.concharsImage) {
+        mtl.concharsImage = Metal_FindImage("pics/conchars.pcx", it_pic);
+        if (!mtl.concharsImage) return;
+    }
+
+    id<MTLTexture> tex = mtl.concharsImage->texture;
+    if (!tex) return;
+
+    if (mtl.currentHUDTexture && mtl.currentHUDTexture != tex)
+        Metal_FlushHUDBatch();
+    mtl.currentHUDTexture = tex;
+
+    int row = c >> 4;
+    int col = c & 15;
+    float s0 = col * (1.0f / 16.0f);
+    float t0 = row * (1.0f / 16.0f);
+    float s1 = s0 + (1.0f / 16.0f);
+    float t1 = t0 + (1.0f / 16.0f);
+
+    float size = 8.0f * scale;
+    float x0 = (float)x, y0 = (float)y;
+    float x1 = x0 + size, y1 = y0 + size;
+    packed_float4 white = {1, 1, 1, 1};
+
+    if (mtl.hudVertexCount + 6 > 65536)
+        Metal_FlushHUDBatch();
+
+    Q2HUDVertex *v = &mtl.hudVertices[mtl.hudVertexCount];
+    v[0] = (Q2HUDVertex){{x0, y0}, {s0, t0}, white};
+    v[1] = (Q2HUDVertex){{x1, y0}, {s1, t0}, white};
+    v[2] = (Q2HUDVertex){{x0, y1}, {s0, t1}, white};
+    v[3] = (Q2HUDVertex){{x1, y0}, {s1, t0}, white};
+    v[4] = (Q2HUDVertex){{x1, y1}, {s1, t1}, white};
+    v[5] = (Q2HUDVertex){{x0, y1}, {s0, t1}, white};
+    mtl.hudVertexCount += 6;
+}
+
 static void R_DrawTileClear(int x, int y, int w, int h, char *name)
 {
     R_DrawStretchPic(x, y, w, h, name);
@@ -1849,6 +1891,7 @@ refexport_t Metal_GetRefAPI(refimport_t rimp)
     re.DrawPic = R_DrawPic;
     re.DrawStretchPic = R_DrawStretchPic;
     re.DrawChar = R_DrawChar;
+    re.DrawScaledChar = R_DrawScaledChar;
     re.DrawTileClear = R_DrawTileClear;
     re.DrawFill = R_DrawFill;
     re.DrawFadeScreen = R_DrawFadeScreen;

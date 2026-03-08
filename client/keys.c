@@ -784,7 +784,8 @@ void Key_Event (int key, qboolean down, unsigned time)
 	}
 
 	// any key during the attract mode will bring up the menu
-	if (cl.attractloop && cls.key_dest != key_menu)
+	// (but not during an active cinematic — let the key skip the cinematic instead)
+	if (cl.attractloop && cls.key_dest != key_menu && !(cl.cinematictime > 0))
 		key = K_ESCAPE;
 
 	// menu key is hardcoded, so the user can never unbind it

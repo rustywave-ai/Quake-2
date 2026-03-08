@@ -238,6 +238,12 @@ class TouchControlsView: UIView {
                 }
             }
 
+            /* If the menu is open (even during a cinematic), handle menu touches first */
+            if !gameControlsVisible && IOS_IsMenuActive() != 0 {
+                handleMenuTouch(at: point)
+                continue
+            }
+
             /* During a cutscene, any tap skips it.
                Q2 skips cinematics when cmd->buttons is set (cl_input.c:494),
                so we send a fire (K_MOUSE1) press, not K_ESCAPE (which opens the menu). */
@@ -248,11 +254,7 @@ class TouchControlsView: UIView {
 
             /* Before a game starts, any tap opens the menu */
             if !gameControlsVisible {
-                if IOS_IsMenuActive() != 0 {
-                    handleMenuTouch(at: point)
-                } else {
-                    sendKeyTap(K_ESCAPE)
-                }
+                sendKeyTap(K_ESCAPE)
                 continue
             }
 

@@ -168,6 +168,7 @@ typedef struct
 	void	(*DrawPic) (int x, int y, char *name);
 	void	(*DrawStretchPic) (int x, int y, int w, int h, char *name);
 	void	(*DrawChar) (int x, int y, int c);
+	void	(*DrawScaledChar) (int x, int y, int c, float scale);
 	void	(*DrawTileClear) (int x, int y, int w, int h, char *name);
 	void	(*DrawFill) (int x, int y, int w, int h, int c);
 	void	(*DrawFadeScreen) (void);
