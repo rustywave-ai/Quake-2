@@ -450,7 +450,8 @@ const char *M_Main_Key (int key)
 		if (++m_main_cursor >= MAIN_ITEMS)
 			m_main_cursor = 0;
 #ifdef __IOS__
-		if (m_main_cursor == 1) m_main_cursor = 2;	/* skip Multiplayer */
+		/* skip Multiplayer, Options, Video (indices 1-3) */
+		if (m_main_cursor >= 1 && m_main_cursor <= 3) m_main_cursor = 4;
 #endif
 		return sound;
 
@@ -459,7 +460,8 @@ const char *M_Main_Key (int key)
 		if (--m_main_cursor < 0)
 			m_main_cursor = MAIN_ITEMS - 1;
 #ifdef __IOS__
-		if (m_main_cursor == 1) m_main_cursor = 0;	/* skip Multiplayer */
+		/* skip Multiplayer, Options, Video (indices 1-3) */
+		if (m_main_cursor >= 1 && m_main_cursor <= 3) m_main_cursor = 0;
 #endif
 		return sound;
 
@@ -481,10 +483,16 @@ const char *M_Main_Key (int key)
 			break;
 
 		case 2:
+#ifdef __IOS__
+			break;	/* TODO: enable when Options menu is ready */
+#endif
 			M_Menu_Options_f ();
 			break;
 
 		case 3:
+#ifdef __IOS__
+			break;	/* TODO: enable when Video menu is ready */
+#endif
 			M_Menu_Video_f ();
 			break;
 
@@ -4258,8 +4266,8 @@ void M_TouchEvent (int x, int y)
 			if (x >= xoffset && x < xoffset + w &&
 				y >= item_y && y < item_y + h)
 			{
-				/* Skip multiplayer (index 1) — single player only */
-				if (i == 1)
+				/* Skip disabled items — Multiplayer, Options, Video */
+				if (i >= 1 && i <= 3)
 					return;
 
 				m_main_cursor = i;

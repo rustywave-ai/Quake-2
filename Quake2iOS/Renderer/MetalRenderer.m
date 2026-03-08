@@ -1424,7 +1424,7 @@ static void R_RenderFrame(refdef_t *fd)
 
     /* Build matrices */
     float aspect = (float)fd->width / (float)fd->height;
-    simd_float4x4 proj = Metal_PerspectiveMatrix(fd->fov_y, aspect, 4.0f, 4096.0f);
+    simd_float4x4 proj = Metal_PerspectiveMatrix(fd->fov_y, aspect, 1.0f, 4096.0f);
     simd_float4x4 view = Metal_ViewMatrix(fd->vieworg, fd->viewangles);
 
     /* Fill frame uniforms */

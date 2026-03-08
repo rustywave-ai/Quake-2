@@ -53,14 +53,16 @@ static int r_registration_sequence = 0;
 
 static void R_SetFrustum(void)
 {
-    /* Build frustum planes from view vectors and FOV */
+    /* Build frustum planes from view vectors and FOV.
+       Matches the original RotatePointAroundVector logic:
+       plane normal = vpn * sin(fov/2) + side * cos(fov/2) */
     float fovx = r_newrefdef.fov_x;
     float fovy = r_newrefdef.fov_y;
 
     /* Right plane */
-    float angle = DEG2RAD(90.0f - fovx * 0.5f);
-    float s = sin(angle);
-    float c = cos(angle);
+    float angle = DEG2RAD(fovx * 0.5f);
+    float s = sinf(angle);
+    float c = cosf(angle);
     VectorScale(vpn, s, frustum[0].normal);
     VectorMA(frustum[0].normal, c, vright, frustum[0].normal);
     frustum[0].dist = DotProduct(r_origin, frustum[0].normal);
@@ -73,9 +75,9 @@ static void R_SetFrustum(void)
     frustum[1].type = PLANE_ANYZ;
 
     /* Bottom plane */
-    angle = DEG2RAD(90.0f - fovy * 0.5f);
-    s = sin(angle);
-    c = cos(angle);
+    angle = DEG2RAD(fovy * 0.5f);
+    s = sinf(angle);
+    c = cosf(angle);
     VectorScale(vpn, s, frustum[2].normal);
     VectorMA(frustum[2].normal, c, vup, frustum[2].normal);
     frustum[2].dist = DotProduct(r_origin, frustum[2].normal);
