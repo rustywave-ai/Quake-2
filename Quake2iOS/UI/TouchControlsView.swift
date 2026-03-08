@@ -332,6 +332,13 @@ class TouchControlsView: UIView {
     // MARK: - Touch Handling
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        /* If the engine is paused (e.g. control center / notifications pulled
+           down), any touch resumes the game and is consumed. */
+        if IOS_GetPausedState() != 0 {
+            Quake2_Resume()
+            return
+        }
+
         for touch in touches {
             let point = touch.location(in: self)
 
