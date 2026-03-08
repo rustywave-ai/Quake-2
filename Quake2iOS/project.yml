@@ -160,7 +160,7 @@ targets:
         # Code signing
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: ""
-        CODE_SIGNING_ALLOWED: NO
+
 
         # Swift / ObjC bridging
         SWIFT_OBJC_BRIDGING_HEADER: Bridging/Quake2iOS-Bridging-Header.h
