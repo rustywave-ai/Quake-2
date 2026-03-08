@@ -68,7 +68,7 @@ void Action_Draw( menuaction_s *a )
 	int dx = a->generic.x + a->generic.parent->x + LCOLUMN_OFFSET;
 	int dy = a->generic.y + a->generic.parent->y;
 
-#ifdef __IOS__
+#if 0 /* IOS_TOUCH_MENUS — 2x scaled text for touch targets, disabled for button nav */
 	if ( a->generic.flags & QMF_LEFT_JUSTIFY )
 	{
 		if ( a->generic.flags & QMF_GRAYED )
@@ -411,8 +411,6 @@ void Menu_Draw( menuframework_s *menu )
 
 	item = Menu_ItemAtCursor( menu );
 
-#ifndef __IOS__
-	/* iOS is touch-first — no selection cursor needed */
 	if ( item && item->cursordraw )
 	{
 		item->cursordraw( item );
@@ -432,7 +430,6 @@ void Menu_Draw( menuframework_s *menu )
 			Draw_Char( menu->x + item->cursor_offset, menu->y + item->y, 12 + ( ( int ) ( Sys_Milliseconds()/250 ) & 1 ) );
 		}
 	}
-#endif
 
 	if ( item )
 	{

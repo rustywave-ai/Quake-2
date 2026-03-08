@@ -308,7 +308,7 @@ and both above and below y.
 */
 void M_DrawCursor( int x, int y, int f )
 {
-#ifdef __IOS__
+#if 0 /* IOS_TOUCH_MENUS — disabled, using button navigation instead */
 	/* iOS is touch-first — no selection cursor needed */
 	return;
 #endif
@@ -449,12 +449,18 @@ const char *M_Main_Key (int key)
 	case K_DOWNARROW:
 		if (++m_main_cursor >= MAIN_ITEMS)
 			m_main_cursor = 0;
+#ifdef __IOS__
+		if (m_main_cursor == 1) m_main_cursor = 2;	/* skip Multiplayer */
+#endif
 		return sound;
 
 	case K_KP_UPARROW:
 	case K_UPARROW:
 		if (--m_main_cursor < 0)
 			m_main_cursor = MAIN_ITEMS - 1;
+#ifdef __IOS__
+		if (m_main_cursor == 1) m_main_cursor = 0;	/* skip Multiplayer */
+#endif
 		return sound;
 
 	case K_KP_ENTER:
@@ -468,6 +474,9 @@ const char *M_Main_Key (int key)
 			break;
 
 		case 1:
+#ifdef __IOS__
+			break;	/* Single-player only */
+#endif
 			M_Menu_Multiplayer_f();
 			break;
 
@@ -1082,8 +1091,10 @@ static float ClampCvar( float min, float max, float value )
 static void ControlsSetMenuItemValues( void )
 {
 	s_options_sfxvolume_slider.curvalue		= Cvar_VariableValue( "s_volume" ) * 10;
+#ifndef __IOS__
 	s_options_cdvolume_box.curvalue 		= !Cvar_VariableValue("cd_nocd");
 	s_options_quality_list.curvalue			= !Cvar_VariableValue( "s_loadas8bit" );
+#endif
 	s_options_sensitivity_slider.curvalue	= ( sensitivity->value ) * 2;
 
 	Cvar_SetValue( "cl_run", ClampCvar( 0, 1, cl_run->value ) );
@@ -1091,11 +1102,13 @@ static void ControlsSetMenuItemValues( void )
 
 	s_options_invertmouse_box.curvalue		= m_pitch->value < 0;
 
+#ifndef __IOS__
 	Cvar_SetValue( "lookspring", ClampCvar( 0, 1, lookspring->value ) );
 	s_options_lookspring_box.curvalue		= lookspring->value;
 
 	Cvar_SetValue( "lookstrafe", ClampCvar( 0, 1, lookstrafe->value ) );
 	s_options_lookstrafe_box.curvalue		= lookstrafe->value;
+#endif
 
 	Cvar_SetValue( "freelook", ClampCvar( 0, 1, freelook->value ) );
 	s_options_freelook_box.curvalue			= freelook->value;
@@ -1103,10 +1116,12 @@ static void ControlsSetMenuItemValues( void )
 	Cvar_SetValue( "crosshair", ClampCvar( 0, 3, crosshair->value ) );
 	s_options_crosshair_box.curvalue		= crosshair->value;
 
+#ifndef __IOS__
 	Cvar_SetValue( "in_joystick", ClampCvar( 0, 1, in_joystick->value ) );
 	s_options_joystick_box.curvalue		= in_joystick->value;
 
 	s_options_noalttab_box.curvalue			= win_noalttab->value;
+#endif
 }
 
 static void ControlsResetDefaultsFunc( void *unused )
@@ -1355,6 +1370,28 @@ void Options_MenuInit( void )
 
 	ControlsSetMenuItemValues();
 
+#ifdef __IOS__
+	/* iOS: relevant items only, compact sequential spacing */
+	s_options_sfxvolume_slider.generic.y              = 0;
+	s_options_sensitivity_slider.generic.y            = 10;
+	s_options_sensitivity_slider.generic.name          = "look sensitivity";
+	s_options_alwaysrun_box.generic.y                 = 20;
+	s_options_invertmouse_box.generic.y               = 30;
+	s_options_invertmouse_box.generic.name              = "invert look";
+	s_options_freelook_box.generic.y                  = 40;
+	s_options_crosshair_box.generic.y                 = 50;
+	s_options_customize_options_action.generic.y       = 70;
+	s_options_defaults_action.generic.y               = 80;
+
+	Menu_AddItem( &s_options_menu, ( void * ) &s_options_sfxvolume_slider );
+	Menu_AddItem( &s_options_menu, ( void * ) &s_options_sensitivity_slider );
+	Menu_AddItem( &s_options_menu, ( void * ) &s_options_alwaysrun_box );
+	Menu_AddItem( &s_options_menu, ( void * ) &s_options_invertmouse_box );
+	Menu_AddItem( &s_options_menu, ( void * ) &s_options_freelook_box );
+	Menu_AddItem( &s_options_menu, ( void * ) &s_options_crosshair_box );
+	Menu_AddItem( &s_options_menu, ( void * ) &s_options_customize_options_action );
+	Menu_AddItem( &s_options_menu, ( void * ) &s_options_defaults_action );
+#else
 	Menu_AddItem( &s_options_menu, ( void * ) &s_options_sfxvolume_slider );
 	Menu_AddItem( &s_options_menu, ( void * ) &s_options_cdvolume_box );
 	Menu_AddItem( &s_options_menu, ( void * ) &s_options_quality_list );
@@ -1370,6 +1407,7 @@ void Options_MenuInit( void )
 	Menu_AddItem( &s_options_menu, ( void * ) &s_options_customize_options_action );
 	Menu_AddItem( &s_options_menu, ( void * ) &s_options_defaults_action );
 	Menu_AddItem( &s_options_menu, ( void * ) &s_options_console_action );
+#endif
 }
 
 void Options_MenuDraw (void)
@@ -1957,21 +1995,21 @@ void Game_MenuInit( void )
 	s_easy_game_action.generic.type	= MTYPE_ACTION;
 	s_easy_game_action.generic.flags  = QMF_LEFT_JUSTIFY;
 	s_easy_game_action.generic.x		= 0;
-	s_easy_game_action.generic.y		= 50;
+	s_easy_game_action.generic.y		= 0;	/* was 50 for touch menus */
 	s_easy_game_action.generic.name	= "easy";
 	s_easy_game_action.generic.callback = EasyGameFunc;
 
 	s_medium_game_action.generic.type	= MTYPE_ACTION;
 	s_medium_game_action.generic.flags  = QMF_LEFT_JUSTIFY;
 	s_medium_game_action.generic.x		= 0;
-	s_medium_game_action.generic.y		= 80;
+	s_medium_game_action.generic.y		= 10;	/* was 80 for touch menus */
 	s_medium_game_action.generic.name	= "medium";
 	s_medium_game_action.generic.callback = MediumGameFunc;
 
 	s_hard_game_action.generic.type	= MTYPE_ACTION;
 	s_hard_game_action.generic.flags  = QMF_LEFT_JUSTIFY;
 	s_hard_game_action.generic.x		= 0;
-	s_hard_game_action.generic.y		= 110;
+	s_hard_game_action.generic.y		= 20;	/* was 110 for touch menus */
 	s_hard_game_action.generic.name	= "hard";
 	s_hard_game_action.generic.callback = HardGameFunc;
 
@@ -1980,21 +2018,21 @@ void Game_MenuInit( void )
 	s_load_game_action.generic.type	= MTYPE_ACTION;
 	s_load_game_action.generic.flags  = QMF_LEFT_JUSTIFY;
 	s_load_game_action.generic.x		= 0;
-	s_load_game_action.generic.y		= 150;
+	s_load_game_action.generic.y		= 40;	/* was 150 for touch menus */
 	s_load_game_action.generic.name	= "load game";
 	s_load_game_action.generic.callback = LoadGameFunc;
 
 	s_save_game_action.generic.type	= MTYPE_ACTION;
 	s_save_game_action.generic.flags  = QMF_LEFT_JUSTIFY;
 	s_save_game_action.generic.x		= 0;
-	s_save_game_action.generic.y		= 180;
+	s_save_game_action.generic.y		= 50;	/* was 180 for touch menus */
 	s_save_game_action.generic.name	= "save game";
 	s_save_game_action.generic.callback = SaveGameFunc;
 
 	s_credits_action.generic.type	= MTYPE_ACTION;
 	s_credits_action.generic.flags  = QMF_LEFT_JUSTIFY;
 	s_credits_action.generic.x		= 0;
-	s_credits_action.generic.y		= 220;
+	s_credits_action.generic.y		= 60;	/* was 220 for touch menus */
 	s_credits_action.generic.name	= "credits";
 	s_credits_action.generic.callback = CreditsFunc;
 
@@ -4236,6 +4274,7 @@ void M_TouchEvent (int x, int y)
 	}
 
 	/* ---- Framework-based submenus ---- */
+#if 0 /* IOS_TOUCH_MENUS — disabled, using D-pad button navigation instead */
 	if (ios_current_menu)
 	{
 		menuframework_s *menu = ios_current_menu;
@@ -4303,6 +4342,7 @@ void M_TouchEvent (int x, int y)
 		M_PopMenu();
 		return;
 	}
+#endif
 }
 
 
