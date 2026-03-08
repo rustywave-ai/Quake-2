@@ -108,8 +108,9 @@ class TouchControlsView: UIView {
     /// (not during attract/demo loop or disconnected state).
     func updateGameState() {
         let inGame = IOS_IsInGame() != 0 && IOS_IsInCinematic() == 0
-        if inGame != gameControlsVisible {
-            gameControlsVisible = inGame
+        let shouldShow = inGame && IOS_IsMenuActive() == 0
+        if shouldShow != gameControlsVisible {
+            gameControlsVisible = shouldShow
         }
     }
 
