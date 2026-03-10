@@ -31,6 +31,7 @@ int  IOS_IsMenuActive(void);
 int  IOS_IsConsoleActive(void);
 int  IOS_IsInGame(void);
 int  IOS_IsInCinematic(void);
+int  IOS_IsLoading(void);
 int  IOS_GetPausedState(void);
 void IOS_MenuTouchAt(int x, int y);
 void IOS_SetControllerConnected(int connected);

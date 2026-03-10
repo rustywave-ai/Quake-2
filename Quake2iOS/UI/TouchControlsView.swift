@@ -332,6 +332,11 @@ class TouchControlsView: UIView {
     // MARK: - Touch Handling
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        /* Block all input during LOADING screens (level transitions).
+           Without this, stray touches hit the K_ESCAPE fallback and
+           open the menu mid-load, causing state corruption. */
+        if IOS_IsLoading() != 0 { return }
+
         /* If the engine is paused by an external interruption (e.g. control
            center / notifications pulled down) and we're NOT in a menu,
            any touch resumes the game and is consumed.  Menus set paused=1

@@ -127,6 +127,16 @@ int IOS_IsInCinematic(void)
 }
 
 /*
+ * IOS_IsLoading
+ * Returns 1 if the engine is showing a loading plaque (level transition).
+ * Used by Swift to block all touch input during LOADING screens.
+ */
+int IOS_IsLoading(void)
+{
+    return (cls.disable_screen != 0) ? 1 : 0;
+}
+
+/*
  * IOS_SetControllerConnected / IOS_IsControllerConnected
  * Tracks whether an MFi/DualSense controller is connected.
  * When no controller is present (touch-only), menu cursor indicators are hidden.
