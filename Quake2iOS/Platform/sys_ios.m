@@ -63,6 +63,22 @@ void Quake2_Init(const char *basePath, const char *savePath)
 
     Qcommon_Init(argc, argv);
 
+    /* Redirect the writable game directory to Documents.
+       FS_InitFilesystem set fs_gamedir to <bundle>/baseq2 which is
+       read-only on iOS.  Save files, configs, and demos need a
+       writable location, so point fs_gamedir at <Documents>/baseq2. */
+    {
+        extern char fs_gamedir[MAX_OSPATH];
+        snprintf(fs_gamedir, MAX_OSPATH, "%s/baseq2", savePath);
+        Sys_Mkdir(fs_gamedir);
+
+        char savedir[MAX_OSPATH];
+        snprintf(savedir, sizeof(savedir), "%s/save", fs_gamedir);
+        Sys_Mkdir(savedir);
+        snprintf(savedir, sizeof(savedir), "%s/save/current", fs_gamedir);
+        Sys_Mkdir(savedir);
+    }
+
     Com_Printf("Quake2 iOS initialized\n");
 }
 
