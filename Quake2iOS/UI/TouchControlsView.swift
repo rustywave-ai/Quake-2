@@ -63,7 +63,7 @@ class TouchControlsView: UIView {
     private var joystickTouch: UITouch?
 
     /* Look joystick speed — degrees per frame at full deflection */
-    private let lookSpeed: Float = 15.0
+    private let lookSpeed: Float = 20.0
 
     /* Button touch tracking — maps each touch to its button so UP events
        are always sent even if the finger slides off the button */
