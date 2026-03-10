@@ -63,7 +63,7 @@ class TouchControlsView: UIView {
     private var joystickTouch: UITouch?
 
     /* Look joystick speed — degrees per frame at full deflection */
-    private let lookSpeed: Float = 15.0
+    private let lookSpeed: Float = 20.0
 
     /* Button touch tracking — maps each touch to its button so UP events
        are always sent even if the finger slides off the button */
@@ -332,9 +332,11 @@ class TouchControlsView: UIView {
     // MARK: - Touch Handling
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        /* If the engine is paused (e.g. control center / notifications pulled
-           down), any touch resumes the game and is consumed. */
-        if IOS_GetPausedState() != 0 {
+        /* If the engine is paused by an external interruption (e.g. control
+           center / notifications pulled down) and we're NOT in a menu,
+           any touch resumes the game and is consumed.  Menus set paused=1
+           normally, so we must not intercept touches in that case. */
+        if IOS_GetPausedState() != 0 && IOS_IsMenuActive() == 0 {
             Quake2_Resume()
             return
         }

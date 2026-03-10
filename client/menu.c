@@ -39,6 +39,7 @@ void M_Menu_Main_f (void);
 		void M_Menu_PlayerConfig_f (void);
 			void M_Menu_DownloadOptions_f (void);
 		void M_Menu_Credits_f( void );
+		void M_Menu_Debug_f (void);
 	void M_Menu_Multiplayer_f( void );
 		void M_Menu_JoinServer_f (void);
 			void M_Menu_AddressBook_f( void );
@@ -1938,7 +1939,16 @@ static menuaction_s		s_hard_game_action;
 static menuaction_s		s_load_game_action;
 static menuaction_s		s_save_game_action;
 static menuaction_s		s_credits_action;
+static menuaction_s		s_cheats_action;
 static menuseparator_s	s_blankline;
+
+/* Debug/Cheats menu */
+static menuframework_s	s_debug_menu;
+static menulist_s		s_debug_god_box;
+static menulist_s		s_debug_noclip_box;
+static menulist_s		s_debug_notarget_box;
+static menuaction_s		s_debug_giveall_action;
+static menuaction_s		s_debug_givehealth_action;
 
 static void StartGame( void )
 {
@@ -1985,6 +1995,133 @@ static void SaveGameFunc( void *unused )
 static void CreditsFunc( void *unused )
 {
 	M_Menu_Credits_f();
+}
+
+static void CheatsFunc( void *unused )
+{
+	M_Menu_Debug_f();
+}
+
+/* ================================================================ */
+/*  Debug / Cheats menu                                             */
+/* ================================================================ */
+
+static void DebugGodFunc( void *unused )
+{
+	Cbuf_AddText("god\n");
+}
+
+static void DebugNoclipFunc( void *unused )
+{
+	Cbuf_AddText("noclip\n");
+}
+
+static void DebugNotargetFunc( void *unused )
+{
+	Cbuf_AddText("notarget\n");
+}
+
+static void DebugGiveAllFunc( void *unused )
+{
+	Cbuf_AddText("give all\n");
+}
+
+static void DebugGiveHealthFunc( void *unused )
+{
+	Cbuf_AddText("give health 100\n");
+}
+
+void Debug_MenuInit( void )
+{
+	static const char *onoff_names[] =
+	{
+		"off",
+		"on",
+		0
+	};
+
+	s_debug_menu.x = viddef.width * 0.50;
+	s_debug_menu.nitems = 0;
+
+	s_debug_god_box.generic.type		= MTYPE_SPINCONTROL;
+	s_debug_god_box.generic.x			= 0;
+	s_debug_god_box.generic.y			= 0;
+	s_debug_god_box.generic.name		= "god mode";
+	s_debug_god_box.generic.callback	= DebugGodFunc;
+	s_debug_god_box.itemnames			= onoff_names;
+	s_debug_god_box.curvalue			= 0;
+
+	s_debug_noclip_box.generic.type		= MTYPE_SPINCONTROL;
+	s_debug_noclip_box.generic.x		= 0;
+	s_debug_noclip_box.generic.y		= 10;
+	s_debug_noclip_box.generic.name		= "noclip";
+	s_debug_noclip_box.generic.callback	= DebugNoclipFunc;
+	s_debug_noclip_box.itemnames		= onoff_names;
+	s_debug_noclip_box.curvalue			= 0;
+
+	s_debug_notarget_box.generic.type		= MTYPE_SPINCONTROL;
+	s_debug_notarget_box.generic.x			= 0;
+	s_debug_notarget_box.generic.y			= 20;
+	s_debug_notarget_box.generic.name		= "notarget";
+	s_debug_notarget_box.generic.callback	= DebugNotargetFunc;
+	s_debug_notarget_box.itemnames			= onoff_names;
+	s_debug_notarget_box.curvalue			= 0;
+
+	s_debug_giveall_action.generic.type		= MTYPE_ACTION;
+	s_debug_giveall_action.generic.flags	= QMF_LEFT_JUSTIFY;
+	s_debug_giveall_action.generic.x		= 0;
+	s_debug_giveall_action.generic.y		= 40;
+	s_debug_giveall_action.generic.name		= "give all";
+	s_debug_giveall_action.generic.callback	= DebugGiveAllFunc;
+
+	s_debug_givehealth_action.generic.type		= MTYPE_ACTION;
+	s_debug_givehealth_action.generic.flags		= QMF_LEFT_JUSTIFY;
+	s_debug_givehealth_action.generic.x			= 0;
+	s_debug_givehealth_action.generic.y			= 50;
+	s_debug_givehealth_action.generic.name		= "give health";
+	s_debug_givehealth_action.generic.callback	= DebugGiveHealthFunc;
+
+	Menu_AddItem( &s_debug_menu, ( void * ) &s_debug_god_box );
+	Menu_AddItem( &s_debug_menu, ( void * ) &s_debug_noclip_box );
+	Menu_AddItem( &s_debug_menu, ( void * ) &s_debug_notarget_box );
+	Menu_AddItem( &s_debug_menu, ( void * ) &s_debug_giveall_action );
+	Menu_AddItem( &s_debug_menu, ( void * ) &s_debug_givehealth_action );
+
+	Menu_Center( &s_debug_menu );
+}
+
+void Debug_MenuDraw( void )
+{
+	M_Banner( "m_banner_game" );
+	Menu_AdjustCursor( &s_debug_menu, 1 );
+	Menu_Draw( &s_debug_menu );
+}
+
+const char *Debug_MenuKey( int key )
+{
+	/* Toggle spincontrol items on Enter/OK or Left/Right */
+	if ( key == K_KP_ENTER || key == K_ENTER ||
+		 key == K_MOUSE1 || key == K_JOY1 ||
+		 key == K_KP_LEFTARROW || key == K_LEFTARROW ||
+		 key == K_KP_RIGHTARROW || key == K_RIGHTARROW )
+	{
+		menucommon_s *item = Menu_ItemAtCursor( &s_debug_menu );
+		if ( item && item->type == MTYPE_SPINCONTROL )
+		{
+			menulist_s *spin = ( menulist_s * ) item;
+			spin->curvalue = !spin->curvalue;
+			if ( spin->generic.callback )
+				spin->generic.callback( spin );
+			return menu_move_sound;
+		}
+	}
+	return Default_MenuKey( &s_debug_menu, key );
+}
+
+void M_Menu_Debug_f (void)
+{
+	Debug_MenuInit();
+	M_PushMenu( Debug_MenuDraw, Debug_MenuKey );
 }
 
 void Game_MenuInit( void )
@@ -2044,6 +2181,13 @@ void Game_MenuInit( void )
 	s_credits_action.generic.name	= "credits";
 	s_credits_action.generic.callback = CreditsFunc;
 
+	s_cheats_action.generic.type	= MTYPE_ACTION;
+	s_cheats_action.generic.flags	= QMF_LEFT_JUSTIFY;
+	s_cheats_action.generic.x		= 0;
+	s_cheats_action.generic.y		= 80;
+	s_cheats_action.generic.name	= "cheats";
+	s_cheats_action.generic.callback = CheatsFunc;
+
 	Menu_AddItem( &s_game_menu, ( void * ) &s_easy_game_action );
 	Menu_AddItem( &s_game_menu, ( void * ) &s_medium_game_action );
 	Menu_AddItem( &s_game_menu, ( void * ) &s_hard_game_action );
@@ -2052,6 +2196,7 @@ void Game_MenuInit( void )
 	Menu_AddItem( &s_game_menu, ( void * ) &s_save_game_action );
 	Menu_AddItem( &s_game_menu, ( void * ) &s_blankline );
 	Menu_AddItem( &s_game_menu, ( void * ) &s_credits_action );
+	Menu_AddItem( &s_game_menu, ( void * ) &s_cheats_action );
 
 	Menu_Center( &s_game_menu );
 }
@@ -4129,6 +4274,7 @@ void M_Init (void)
 		Cmd_AddCommand ("menu_playerconfig", M_Menu_PlayerConfig_f);
 			Cmd_AddCommand ("menu_downloadoptions", M_Menu_DownloadOptions_f);
 		Cmd_AddCommand ("menu_credits", M_Menu_Credits_f );
+		Cmd_AddCommand ("menu_debug", M_Menu_Debug_f);
 	Cmd_AddCommand ("menu_multiplayer", M_Menu_Multiplayer_f );
 	Cmd_AddCommand ("menu_video", M_Menu_Video_f);
 	Cmd_AddCommand ("menu_options", M_Menu_Options_f);
